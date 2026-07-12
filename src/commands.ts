@@ -146,7 +146,9 @@ export function registerCommands(
 
         const appDir = path.join(parentDir, name);
         if (fs.existsSync(appDir)) {
-            vscode.window.showWarningMessage(`Folder already exists: ${appDir}`);
+            vscode.window.showWarningMessage(
+                `Folder already exists: ${appDir} — starter apps are only created in brand-new folders so existing files are never touched. Pick a different name or parent folder.`
+            );
             return;
         }
         fs.mkdirSync(appDir, { recursive: true });
