@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MainTreeProvider } from './treeProviders';
+import { MainTreeProvider, RecentProjectsProvider } from './treeProviders';
 import { registerCommands } from './commands';
 import { StateManager } from './stateManager';
 import { buildState } from './buildState';
@@ -11,12 +11,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.window.registerTreeDataProvider('flipperMain', mainProvider);
 
+    const recentProvider = new RecentProjectsProvider(state);
+    vscode.window.registerTreeDataProvider('flipperRecentProjects', recentProvider);
+
     const firmwareView = new FirmwareViewProvider(state);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(FirmwareViewProvider.viewId, firmwareView)
     );
 
-    const refresh = () => { mainProvider.refresh(); firmwareView.refresh(); };
+    const refresh = () => { mainProvider.refresh(); recentProvider.refresh(); firmwareView.refresh(); };
 
     registerCommands(context, state, refresh);
 

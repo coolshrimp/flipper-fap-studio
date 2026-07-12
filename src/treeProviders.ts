@@ -86,6 +86,78 @@ export class FirmwareStatusItem extends vscode.TreeItem {
     }
 }
 
+// ── Recent projects ───────────────────────────────────────────────────────────
+
+function timeAgo(ts: number): string {
+    const s = Math.max(0, (Date.now() - ts) / 1000);
+    if (s < 60)         { return 'just now'; }
+    if (s < 3600)       { return `${Math.floor(s / 60)}m ago`; }
+    if (s < 86400)      { return `${Math.floor(s / 3600)}h ago`; }
+    if (s < 86400 * 30) { return `${Math.floor(s / 86400)}d ago`; }
+    return new Date(ts).toLocaleDateString();
+}
+
+export class RecentProjectItem extends vscode.TreeItem {
+    constructor(
+        public readonly projectPath: string,
+        lastOpened: number,
+        isActive: boolean
+    ) {
+        super(path.basename(projectPath), vscode.TreeItemCollapsibleState.None);
+        const exists = fs.existsSync(projectPath);
+
+        this.description = isActive ? `● active — ${timeAgo(lastOpened)}` : timeAgo(lastOpened);
+        this.iconPath = !exists
+            ? new vscode.ThemeIcon('warning', YELLOW)
+            : isActive
+                ? new vscode.ThemeIcon('folder-active', GREEN)
+                : new vscode.ThemeIcon('folder', PURPLE);
+        this.contextValue = 'recentProject';
+        this.tooltip = md([
+            `**${path.basename(projectPath)}**`,
+            '',
+            `\`${projectPath}\``,
+            '',
+            `Last worked on: ${new Date(lastOpened).toLocaleString()}`,
+            '',
+            exists
+                ? '_Click to make this the current app folder. Use the inline buttons to open it in a new VS Code window or remove it from the list._'
+                : '⚠ _Folder no longer exists on disk._',
+        ].join('\n'));
+        this.command = {
+            command: 'flipperFapStudio.recent.setActive',
+            title: 'Set as current app folder',
+            arguments: [this],
+        };
+    }
+}
+
+export class RecentProjectsProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+    constructor(private state: StateManager) {}
+
+    refresh() { this._onDidChangeTreeData.fire(); }
+
+    getTreeItem(el: vscode.TreeItem) { return el; }
+
+    getChildren(element?: vscode.TreeItem): vscode.TreeItem[] {
+        if (element) { return []; }
+        const recents = this.state.getRecentProjects();
+        if (recents.length === 0) {
+            const empty = new vscode.TreeItem('No recent projects yet');
+            empty.iconPath = new vscode.ThemeIcon('info');
+            empty.tooltip = md('Projects appear here automatically when you **create**, **open**, or **build** a Flipper app.');
+            return [empty];
+        }
+        const active = this.state.getAppFolder().toLowerCase();
+        return recents.map(r =>
+            new RecentProjectItem(r.path, r.lastOpened, r.path.toLowerCase() === active)
+        );
+    }
+}
+
 // ── Firmware metadata ─────────────────────────────────────────────────────────
 
 export const FW_META: Record<string, {

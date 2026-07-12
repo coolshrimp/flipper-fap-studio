@@ -1,9 +1,18 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export interface CustomTarget {
     name: string;
     path: string;
 }
+
+export interface RecentProject {
+    path: string;
+    lastOpened: number;
+}
+
+const MAX_RECENT_PROJECTS = 10;
 
 export class StateManager {
     constructor(private readonly context: vscode.ExtensionContext) {}
@@ -22,6 +31,32 @@ export class StateManager {
         this.context.globalState.update('appFolder', p);
         vscode.workspace.getConfiguration('flipperFapStudio')
             .update('defaultAppFolder', p, vscode.ConfigurationTarget.Global);
+        this.touchRecentProject(p);
+    }
+
+    // ── Recent projects ───────────────────────────────────────────────────────
+
+    getRecentProjects(): RecentProject[] {
+        return this.context.globalState.get<RecentProject[]>('recentProjects') || [];
+    }
+
+    /** Record activity on a folder — only valid Flipper apps (with application.fam) are tracked. */
+    touchRecentProject(p: string) {
+        if (!p) { return; }
+        try {
+            if (!fs.existsSync(path.join(p, 'application.fam'))) { return; }
+        } catch { return; }
+        const list = this.getRecentProjects()
+            .filter(r => r.path.toLowerCase() !== p.toLowerCase());
+        list.unshift({ path: p, lastOpened: Date.now() });
+        this.context.globalState.update('recentProjects', list.slice(0, MAX_RECENT_PROJECTS));
+    }
+
+    removeRecentProject(p: string) {
+        this.context.globalState.update(
+            'recentProjects',
+            this.getRecentProjects().filter(r => r.path !== p)
+        );
     }
 
     // ── Active firmware target ────────────────────────────────────────────────

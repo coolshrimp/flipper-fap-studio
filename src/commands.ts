@@ -5,7 +5,7 @@ import { StateManager } from './stateManager';
 import { runUfbt, buildWithTarget } from './ufbtRunner';
 import { SettingsPanel } from './settingsPanel';
 import { showGuidePanel } from './guidePanel';
-import { FirmwareStatusItem, FW_META } from './treeProviders';
+import { FirmwareStatusItem, RecentProjectItem, FW_META } from './treeProviders';
 import { buildState } from './buildState';
 import { getErrorHints, formatHintsForModal } from './errorHints';
 
@@ -45,6 +45,7 @@ export function registerCommands(
         const folder = requireFolder(state);
         if (!folder) { return; }
         if (!(await validateAppFolder(folder))) { return; }
+        state.touchRecentProject(folder);
 
         const targetPath = state.getTargetPath(state.getActiveTarget());
         refresh();
@@ -73,6 +74,7 @@ export function registerCommands(
         const folder = requireFolder(state);
         if (!folder) { return; }
         if (!(await validateAppFolder(folder))) { return; }
+        state.touchRecentProject(folder);
 
         const targetPath = state.getTargetPath(state.getActiveTarget());
         refresh();
@@ -324,6 +326,42 @@ int32_t app_main(void* p) {
         if (meta?.webUrl) {
             vscode.env.openExternal(vscode.Uri.parse(meta.webUrl));
         }
+    });
+
+    // ── Recent projects ──────────────────────────────────────────────────────
+    reg('flipperFapStudio.recent.setActive', async (item: unknown) => {
+        const p = (item as RecentProjectItem)?.projectPath;
+        if (!p) { return; }
+        if (!fs.existsSync(p)) {
+            const action = await vscode.window.showWarningMessage(
+                `Folder no longer exists: ${p}`,
+                'Remove from list'
+            );
+            if (action) { state.removeRecentProject(p); refresh(); }
+            return;
+        }
+        state.setAppFolder(p);
+        refresh();
+        vscode.window.showInformationMessage(`App folder set to: ${p}`);
+    });
+
+    reg('flipperFapStudio.recent.openWindow', async (item: unknown) => {
+        const p = (item as RecentProjectItem)?.projectPath;
+        if (!p) { return; }
+        if (!fs.existsSync(p)) {
+            vscode.window.showWarningMessage(`Folder no longer exists: ${p}`);
+            return;
+        }
+        state.touchRecentProject(p);
+        refresh();
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(p), { forceNewWindow: true });
+    });
+
+    reg('flipperFapStudio.recent.remove', (item: unknown) => {
+        const p = (item as RecentProjectItem)?.projectPath;
+        if (!p) { return; }
+        state.removeRecentProject(p);
+        refresh();
     });
 
     // ── Refresh ──────────────────────────────────────────────────────────────

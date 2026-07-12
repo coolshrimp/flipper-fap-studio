@@ -59,6 +59,10 @@ Target   OEM / uFBT (official)
   Guide
   Settings
 ────────────────────────────────
+Recent Projects
+  my_app        ● active — 5m ago
+  fm_radio      2d ago
+────────────────────────────────
 Firmware SDKs
   ● OEM / uFBT     v1.x (up to date)
   ● RogueMaster    SDK found
@@ -80,6 +84,8 @@ Firmware SDKs
 | **Select firmware target** | QuickPick to choose OEM, RogueMaster, Momentum, Unleashed, or a custom SDK path |
 | **Guide** | Opens the step-by-step usage guide |
 | **Settings** | Opens the extension's settings panel (build output, new-app defaults, SDK paths) |
+
+The **Recent Projects** view lists every valid Flipper app you've created, opened, or built, newest first. Click one to switch the extension to that app folder instantly; inline buttons open the project in a new VS Code window or remove it from the list. Only folders containing an `application.fam` are tracked.
 
 The **Firmware SDKs** view below the buttons shows each SDK's status live — whether uFBT is installed and up to date (checked against PyPI), and whether each custom-firmware SDK path exists on disk — with inline buttons to install/update uFBT, set paths, and open release pages. Build failures are matched against common problems (Flipper not detected, API mismatch, missing includes, …) and shown as actionable hints.
 

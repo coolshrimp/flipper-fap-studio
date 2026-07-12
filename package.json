@@ -53,6 +53,11 @@
           "type": "tree"
         },
         {
+          "id": "flipperRecentProjects",
+          "name": "Recent Projects",
+          "type": "tree"
+        },
+        {
           "id": "flipperFirmwareStatus",
           "name": "Firmware SDKs",
           "type": "webview"
@@ -72,6 +77,9 @@
       { "command": "flipperFapStudio.openGuide",        "title": "Guide",     "icon": "$(book)",           "category": "Flipper FAP Studio" },
       { "command": "flipperFapStudio.cancelBuild",      "title": "Cancel Build", "icon": "$(stop-circle)", "category": "Flipper FAP Studio" },
       { "command": "flipperFapStudio.refresh",          "title": "Refresh",   "icon": "$(refresh)",        "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.recent.setActive",  "title": "Set as Current App Folder", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.recent.openWindow", "title": "Open in New Window", "icon": "$(empty-window)", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.recent.remove",     "title": "Remove from Recent", "icon": "$(close)",        "category": "Flipper FAP Studio" },
       { "command": "flipperFapStudio.fw.setPath",    "title": "Set SDK Path",       "icon": "$(folder-opened)", "category": "Flipper FAP Studio" },
       { "command": "flipperFapStudio.fw.openGitHub", "title": "GitHub Releases",   "icon": "$(cloud-download)", "category": "Flipper FAP Studio" },
       { "command": "flipperFapStudio.fw.openWebPage","title": "Open Update Page",  "icon": "$(link-external)",  "category": "Flipper FAP Studio" }
@@ -95,6 +103,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "flipperFapStudio.recent.openWindow",
+          "when": "view == flipperRecentProjects && viewItem == recentProject",
+          "group": "inline@1"
+        },
+        {
+          "command": "flipperFapStudio.recent.remove",
+          "when": "view == flipperRecentProjects && viewItem == recentProject",
+          "group": "inline@2"
+        },
         {
           "command": "flipperFapStudio.fw.setPath",
           "when": "view == flipperMain && viewItem =~ /^fw-(?!oem)/",
