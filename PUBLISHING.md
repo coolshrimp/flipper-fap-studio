@@ -40,7 +40,7 @@ How to release a new version to GitHub and the VS Code Marketplace.
 
 ## Notes
 
-- The Marketplace icon is `media/icon.png` (512×512, resized from `media/FAP Studio Color Icon.png`;
-  regenerate with `magick "media/FAP Studio Color Icon.png" -resize 512x512 media/icon.png`).
+- The Marketplace icon is `media/icon.png` (256×256, from `media/logo only.png`; regenerate with
+  `magick "media/logo only.png" -resize 216x216 -background none -gravity center -extent 256x256 media/icon.png`).
 - `.vscodeignore` controls what goes inside the `.vsix` — source, docs, and this file are excluded.
 - Marketplace listing renders `README.md`; keep screenshots/links there current.
