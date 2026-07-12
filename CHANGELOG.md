@@ -18,6 +18,7 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ### Changed
 - README updated with Marketplace install instructions and current panel layout
+- Media files renamed to kebab-case (`fap-studio-icon.png`, `fap-studio-color-icon.png`, `logo-only.png`)
 
 ---
 

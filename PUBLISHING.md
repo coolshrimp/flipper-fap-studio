@@ -2,6 +2,20 @@
 
 How to release a new version to GitHub and the VS Code Marketplace.
 
+## One-time setup (GitHub)
+
+The repo lives only on this PC until you push. To put it on GitHub:
+
+1. Create an empty repo named **flipper-fap-studio** at https://github.com/new
+   (owner `coolshrimp`, no README/license — the project already has them).
+2. The remote is already configured (`git remote -v` shows `origin`). Push everything:
+   ```
+   git push -u origin main
+   ```
+   Or in VS Code: Source Control panel → **…** menu → **Push** (it will prompt to sign in to GitHub the first time).
+
+After this, day-to-day pushes are just the sync button in VS Code's status bar. Nothing is sent to GitHub unless you push.
+
 ## One-time setup (Marketplace)
 
 1. Create a **publisher** (id `coolshrimp` must match `publisher` in package.json):
@@ -40,7 +54,7 @@ How to release a new version to GitHub and the VS Code Marketplace.
 
 ## Notes
 
-- The Marketplace icon is `media/icon.png` (256×256, from `media/logo only.png`; regenerate with
-  `magick "media/logo only.png" -resize 216x216 -background none -gravity center -extent 256x256 media/icon.png`).
+- The Marketplace icon is `media/icon.png` (256×256, from `media/logo-only.png`; regenerate with
+  `magick media/logo-only.png -resize 216x216 -background none -gravity center -extent 256x256 media/icon.png`).
 - `.vscodeignore` controls what goes inside the `.vsix` — source, docs, and this file are excluded.
 - Marketplace listing renders `README.md`; keep screenshots/links there current.

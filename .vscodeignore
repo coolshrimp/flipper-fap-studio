@@ -7,9 +7,9 @@ out/**/*.map
 **/*.ts
 tsconfig.json
 .gitignore
-media/FAP Studio Icon.png
-media/FAP Studio Color Icon.png
+media/fap-studio-icon.png
+media/fap-studio-color-icon.png
 media/flipperzero.webp
-media/logo only.png
+media/logo-only.png
 *.vsix
 PUBLISHING.md
