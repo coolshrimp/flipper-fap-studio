@@ -50,7 +50,9 @@ After this, day-to-day pushes are just the sync button in VS Code's status bar. 
    git tag vX.Y.Z
    git push --follow-tags
    ```
-6. Optionally attach the `.vsix` to a GitHub Release for users who install manually.
+6. Pushing the tag automatically triggers the **Release** GitHub Action
+   ([.github/workflows/release.yml](.github/workflows/release.yml)), which builds the `.vsix`
+   and attaches it to a GitHub Release — no manual upload needed.
 
 ## Notes
 
