@@ -1,0 +1,190 @@
+{
+  "name": "flipper-fap-studio",
+  "displayName": "Flipper FAP Studio",
+  "description": "GUI-first VS Code extension for building Flipper Zero .fap apps with uFBT — build, launch, and manage firmware SDKs without the command line",
+  "version": "0.7.0",
+  "publisher": "coolshrimp",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coolshrimp/flipper-fap-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/coolshrimp/flipper-fap-studio/issues"
+  },
+  "homepage": "https://github.com/coolshrimp/flipper-fap-studio#readme",
+  "keywords": [
+    "flipper",
+    "flipper zero",
+    "fap",
+    "ufbt",
+    "firmware",
+    "embedded",
+    "momentum",
+    "unleashed",
+    "roguemaster"
+  ],
+  "galleryBanner": {
+    "color": "#1e1b2e",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flipperFapStudio",
+          "title": "Flipper FAP Studio",
+          "icon": "media/flipper-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "flipperFapStudio": [
+        {
+          "id": "flipperMain",
+          "name": "Flipper FAP Studio",
+          "type": "tree"
+        },
+        {
+          "id": "flipperFirmwareStatus",
+          "name": "Firmware SDKs",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "flipperFapStudio.installUfbt",      "title": "Install / Update uFBT",       "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.build",            "title": "Build .fap",                  "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.buildAndLaunch",   "title": "Build + Launch on Flipper",   "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.clean",            "title": "Clean",                       "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.openDist",         "title": "Open dist folder",            "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.createStarterApp", "title": "Create starter app",          "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.selectTarget",     "title": "Select firmware target",      "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.pickAppFolder",    "title": "Set app folder…",             "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.openSettings",     "title": "Settings",  "icon": "$(settings-gear)", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.openGuide",        "title": "Guide",     "icon": "$(book)",           "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.cancelBuild",      "title": "Cancel Build", "icon": "$(stop-circle)", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.refresh",          "title": "Refresh",   "icon": "$(refresh)",        "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.fw.setPath",    "title": "Set SDK Path",       "icon": "$(folder-opened)", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.fw.openGitHub", "title": "GitHub Releases",   "icon": "$(cloud-download)", "category": "Flipper FAP Studio" },
+      { "command": "flipperFapStudio.fw.openWebPage","title": "Open Update Page",  "icon": "$(link-external)",  "category": "Flipper FAP Studio" }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "flipperFapStudio.openSettings",
+          "when": "view == flipperMain",
+          "group": "navigation@1"
+        },
+        {
+          "command": "flipperFapStudio.openGuide",
+          "when": "view == flipperMain",
+          "group": "navigation@2"
+        },
+        {
+          "command": "flipperFapStudio.refresh",
+          "when": "view == flipperMain",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "flipperFapStudio.fw.setPath",
+          "when": "view == flipperMain && viewItem =~ /^fw-(?!oem)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "flipperFapStudio.fw.openGitHub",
+          "when": "view == flipperMain && viewItem =~ /^fw-/",
+          "group": "inline@2"
+        },
+        {
+          "command": "flipperFapStudio.fw.openWebPage",
+          "when": "view == flipperMain && (viewItem == 'fw-oem' || viewItem == 'fw-momentum')",
+          "group": "inline@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Flipper FAP Studio",
+      "properties": {
+        "flipperFapStudio.defaultAppFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Default folder containing the Flipper app source"
+        },
+        "flipperFapStudio.defaultTarget": {
+          "type": "string",
+          "default": "oem",
+          "description": "Active firmware build target"
+        },
+        "flipperFapStudio.askOnBuildOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "Prompt for an output folder after every successful build so you can copy the .fap anywhere"
+        },
+        "flipperFapStudio.buildOutputDir": {
+          "type": "string",
+          "default": "",
+          "description": "Automatically copy the built .fap to this directory after each successful build (ignored when askOnBuildOutput is enabled)"
+        },
+        "flipperFapStudio.defaultCreateAppDir": {
+          "type": "string",
+          "default": "",
+          "description": "Default parent folder offered when creating a new starter app (leave blank to always browse)"
+        },
+        "flipperFapStudio.targets.rogueMasterPath": {
+          "type": "string",
+          "default": "C:\\Flipper\\RogueMaster",
+          "description": "Path to RogueMaster firmware SDK"
+        },
+        "flipperFapStudio.targets.momentumPath": {
+          "type": "string",
+          "default": "C:\\Flipper\\Momentum",
+          "description": "Path to Momentum firmware SDK"
+        },
+        "flipperFapStudio.targets.unleashedPath": {
+          "type": "string",
+          "default": "C:\\Flipper\\Unleashed",
+          "description": "Path to Unleashed firmware SDK"
+        },
+        "flipperFapStudio.targets.custom": {
+          "type": "array",
+          "default": [],
+          "description": "Custom firmware target paths",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "path": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "deploy": "vsce package && powershell -Command \"code --install-extension (Get-ChildItem *.vsix | Sort-Object LastWriteTime -Descending | Select-Object -First 1).Name --force\""
+  },
+  "dependencies": {
+    "archiver": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "@types/archiver": "^6.0.2",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

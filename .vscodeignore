@@ -1,0 +1,14 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+docs/**
+out/**/*.map
+**/*.ts
+tsconfig.json
+.gitignore
+media/FAP Studio Icon.png
+media/FAP Studio Color Icon.png
+media/flipperzero.webp
+*.vsix
+PUBLISHING.md
