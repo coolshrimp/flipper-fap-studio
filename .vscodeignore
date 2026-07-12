@@ -3,6 +3,7 @@
 src/**
 node_modules/**
 docs/**
+screenshots/**
 out/**/*.map
 **/*.ts
 tsconfig.json

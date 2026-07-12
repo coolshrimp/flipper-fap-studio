@@ -42,33 +42,9 @@ others build and test their own apps too. More free tools to come.
 
 ## Panel Layout
 
-```
-Flipper FAP Studio
-────────────────────────────────
-App      my_app
-Target   OEM / uFBT (official)
-────────────────────────────────
-  Build .fap
-  Build + Launch on Flipper
-  Clean
-  Open Working Directory
-────────────────────────────────
-  Create starter app
-  Select firmware target
-────────────────────────────────
-  Guide
-  Settings
-────────────────────────────────
-Recent Projects
-  my_app        ● active — 5m ago
-  fm_radio      2d ago
-────────────────────────────────
-Firmware SDKs
-  ● OEM / uFBT     v1.x (up to date)
-  ● RogueMaster    SDK found
-  ● Momentum       Path not found
-  ● Unleashed      Not configured
-```
+<img src="screenshots/Screenshot1.png" width="320" alt="Flipper FAP Studio sidebar — build buttons, Recent Projects, and live Firmware SDKs status">
+
+The sidebar shows the current app and target at the top, one-click build actions, your Recent Projects, and live Firmware SDK status (installed version, up-to-date check, path found/missing) with inline install/update buttons.
 
 ---
 
