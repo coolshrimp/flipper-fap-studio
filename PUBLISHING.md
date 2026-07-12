@@ -56,7 +56,7 @@ After this, day-to-day pushes are just the sync button in VS Code's status bar. 
 
 ## Notes
 
-- The Marketplace icon is `media/icon.png` (256×256, from `media/logo-only.png`; regenerate with
-  `magick media/logo-only.png -resize 216x216 -background none -gravity center -extent 256x256 media/icon.png`).
+- The Marketplace icon is `media/icon.png` (256×256, from `media/fap-studio-color-icon.png`; regenerate with
+  `magick media/fap-studio-color-icon.png -resize 256x256 media/icon.png`).
 - `.vscodeignore` controls what goes inside the `.vsix` — source, docs, and this file are excluded.
 - Marketplace listing renders `README.md`; keep screenshots/links there current.
