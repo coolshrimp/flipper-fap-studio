@@ -2,3 +2,7 @@ node_modules/
 out/
 *.vsix
 .vscode-test/
+
+# Local-only notes (not for the public repo)
+PUBLISHING.md
+docs/

@@ -14,7 +14,6 @@ All notable changes to Flipper FAP Studio are documented here.
 - **Recent Projects panel** — valid Flipper apps you create, open, or build are tracked automatically with a "last worked on" time; click an entry to make it the current app folder, or use the inline buttons to open it in a new VS Code window or remove it from the list
 - Marketplace metadata: extension icon (`media/icon.png`), repository/bugs/homepage links, license field, keywords, gallery banner
 - `.gitignore` and project now under git version control
-- `PUBLISHING.md` — step-by-step guide for publishing to the VS Code Marketplace
 
 ### Changed
 - README updated with Marketplace install instructions and current panel layout
