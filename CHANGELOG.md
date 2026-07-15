@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.7.2] — 2026-07-15
+
+### Changed
+- README: added VS Code Marketplace quick-install link and badges (version, installs); Marketplace listing added to Links
+
+---
+
 ## [0.7.1] — 2026-07-15
 
 ### Changed
