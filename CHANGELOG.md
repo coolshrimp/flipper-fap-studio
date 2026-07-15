@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.7.1] — 2026-07-15
+
+### Changed
+- README: Install section now links directly to the GitHub repository and the latest `.vsix` on GitHub Releases for easier install
+
+---
+
 ## [0.7.0] — 2026-07-12
 
 ### Fixed

@@ -2,7 +2,7 @@
   "name": "flipper-fap-studio",
   "displayName": "Flipper FAP Studio",
   "description": "GUI-first VS Code extension for building Flipper Zero .fap apps with uFBT — build, launch, and manage firmware SDKs without the command line",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "publisher": "coolshrimp",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -33,8 +33,12 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -66,24 +70,105 @@
       ]
     },
     "commands": [
-      { "command": "flipperFapStudio.installUfbt",      "title": "Install / Update uFBT",       "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.build",            "title": "Build .fap",                  "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.buildAndLaunch",   "title": "Build + Launch on Flipper",   "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.clean",            "title": "Clean",                       "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.openDist",         "title": "Open dist folder",            "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.createStarterApp", "title": "Create starter app",          "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.selectTarget",     "title": "Select firmware target",      "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.pickAppFolder",    "title": "Set app folder…",             "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.openSettings",     "title": "Settings",  "icon": "$(settings-gear)", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.openGuide",        "title": "Guide",     "icon": "$(book)",           "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.cancelBuild",      "title": "Cancel Build", "icon": "$(stop-circle)", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.refresh",          "title": "Refresh",   "icon": "$(refresh)",        "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.recent.setActive",  "title": "Set as Current App Folder", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.recent.openWindow", "title": "Open in New Window", "icon": "$(empty-window)", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.recent.remove",     "title": "Remove from Recent", "icon": "$(close)",        "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.fw.setPath",    "title": "Set SDK Path",       "icon": "$(folder-opened)", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.fw.openGitHub", "title": "GitHub Releases",   "icon": "$(cloud-download)", "category": "Flipper FAP Studio" },
-      { "command": "flipperFapStudio.fw.openWebPage","title": "Open Update Page",  "icon": "$(link-external)",  "category": "Flipper FAP Studio" }
+      {
+        "command": "flipperFapStudio.installUfbt",
+        "title": "Install / Update uFBT",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.build",
+        "title": "Build .fap",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.buildAndLaunch",
+        "title": "Build + Launch on Flipper",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.clean",
+        "title": "Clean",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.openDist",
+        "title": "Open dist folder",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.createStarterApp",
+        "title": "Create starter app",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.selectTarget",
+        "title": "Select firmware target",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.pickAppFolder",
+        "title": "Set app folder…",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.openSettings",
+        "title": "Settings",
+        "icon": "$(settings-gear)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.openGuide",
+        "title": "Guide",
+        "icon": "$(book)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.cancelBuild",
+        "title": "Cancel Build",
+        "icon": "$(stop-circle)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.recent.setActive",
+        "title": "Set as Current App Folder",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.recent.openWindow",
+        "title": "Open in New Window",
+        "icon": "$(empty-window)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.recent.remove",
+        "title": "Remove from Recent",
+        "icon": "$(close)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.fw.setPath",
+        "title": "Set SDK Path",
+        "icon": "$(folder-opened)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.fw.openGitHub",
+        "title": "GitHub Releases",
+        "icon": "$(cloud-download)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.fw.openWebPage",
+        "title": "Open Update Page",
+        "icon": "$(link-external)",
+        "category": "Flipper FAP Studio"
+      }
     ],
     "menus": {
       "view/title": [
@@ -181,8 +266,12 @@
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "path": { "type": "string" }
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
             }
           }
         }

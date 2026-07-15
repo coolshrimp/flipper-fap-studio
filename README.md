@@ -27,7 +27,9 @@ others build and test their own apps too. More free tools to come.
 ## Install
 
 - **VS Code Marketplace** — search for **Flipper FAP Studio** in the Extensions view (`Ctrl+Shift+X`)
-- **From VSIX** — `Ctrl+Shift+P` → **Extensions: Install from VSIX** and pick the downloaded file
+- **From VSIX (GitHub)** — download the latest `.vsix` from [GitHub Releases](https://github.com/coolshrimp/flipper-fap-studio/releases/latest), then `Ctrl+Shift+P` → **Extensions: Install from VSIX** and pick the downloaded file
+
+Source code: [github.com/coolshrimp/flipper-fap-studio](https://github.com/coolshrimp/flipper-fap-studio)
 
 ---
 
