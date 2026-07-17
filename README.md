@@ -1,7 +1,8 @@
 # Flipper FAP Studio
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/coolshrimp.flipper-fap-studio?label=VS%20Code%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/coolshrimp.flipper-fap-studio)](https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/coolshrimp.flipper-fap-studio.svg?label=VS%20Code%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/coolshrimp.flipper-fap-studio.svg)](https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio)
+[![GitHub Release](https://img.shields.io/github/v/release/coolshrimp/flipper-fap-studio?label=Latest%20Release&color=ff8c1a)](https://github.com/coolshrimp/flipper-fap-studio/releases/latest)
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
 No command line required — just buttons, status, and output logs.  
