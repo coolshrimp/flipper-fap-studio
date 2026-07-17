@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.2] — 2026-07-17
+
+### Fixed
+- **Live Screen panel could be missed after updating** — VS Code persists the sidebar layout, so the new panel could be appended at the bottom (collapsed) or hidden instead of sitting above Serial Log. A one-time prompt now offers to reveal it; drag its header to reorder, or run *View: Reset View Locations* to restore the default order.
+
+---
+
 ## [0.8.1] — 2026-07-17
 
 ### Changed

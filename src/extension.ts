@@ -93,6 +93,21 @@ export function activate(context: vscode.ExtensionContext) {
             refresh();
         }
     }
+
+    // ── One-time reveal of the Live Screen panel ──────────────────────────────
+    // VS Code persists each sidebar container's layout, so a view added in an
+    // update can end up appended at the bottom (collapsed) or hidden instead of
+    // its declared position above Serial Log — surface it once so it isn't missed.
+    const revealKey = 'liveScreenRevealed';
+    if (!context.globalState.get(revealKey)) {
+        void context.globalState.update(revealKey, true);
+        vscode.window.showInformationMessage(
+            'New: Live Screen is now a panel in the Flipper sidebar. If it appears in the wrong spot, drag its header above Serial Log — or run "View: Reset View Locations" for the default order.',
+            'Reveal Live Screen'
+        ).then(action => {
+            if (action) { void vscode.commands.executeCommand('flipperScreen.focus'); }
+        });
+    }
 }
 
 export function deactivate() {}
