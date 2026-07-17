@@ -5,7 +5,7 @@
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
 No command line required — just buttons, status, and output logs.  
-Now with a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
+Now with a **UI Designer** (design 128×64 screens visually, lopaka-style, and generate a complete buildable app), a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
 
 ## Why I built this
 
@@ -71,6 +71,7 @@ The sidebar shows the current app and target at the top, one-click build actions
 | **Clean** | Runs `ufbt clean` to remove build artifacts |
 | **Open Working Directory** | Opens `dist/` in Explorer (falls back to app root if dist doesn't exist yet) |
 | **Create starter app** | Creates a new folder with `application.fam` + working `main.c` boilerplate and opens it in the workspace |
+| **UI Designer** | Visual 128×64 screen editor — drag & drop elements/icons, multiple screens, generates `canvas_*` code or a whole app (see below) |
 | **Select firmware target** | QuickPick to choose OEM, RogueMaster, Momentum, Unleashed, or a custom SDK path |
 | **Guide** | Opens the step-by-step usage guide |
 | **Settings** | Opens the extension's settings panel (build output, new-app defaults, SDK paths) |
@@ -78,6 +79,25 @@ The sidebar shows the current app and target at the top, one-click build actions
 The **Recent Projects** view lists every valid Flipper app you've created, opened, or built, newest first. Click one to switch the extension to that app folder instantly; inline buttons open the project in a new VS Code window or remove it from the list. Only folders containing an `application.fam` are tracked.
 
 The **Firmware SDKs** view below the buttons shows each SDK's status live — whether uFBT is installed and up to date (checked against PyPI), and each custom-firmware folder **verified for real**: the extension scans the folder (several levels deep — nested extract-in-a-folder layouts are fine) for `update.fuf` manifests, shows the exact firmware version found (e.g. `mntm-012 ✓ verified`), and compares it against the latest GitHub release (`mntm-012 → mntm-013 available`). Point several targets at one parent folder and each finds its own firmware — and if a scan turns up a firmware sitting under the *wrong* target, it's assigned to the right one automatically. Anything unverifiable simply shows `Not found — latest <tag>`. The ↻ button in the panel header re-checks everything; inline buttons install/update uFBT, set paths, open release pages, and jump to each firmware's **web updater** — Flipper Lab (OEM), Momentum, Unleashed, and RogueMaster (opens lab.flipper.net pre-loaded with the latest RM build). Build failures are matched against common problems (Flipper not detected, API mismatch, missing includes, …) and shown as actionable hints.
+
+---
+
+## UI Designer
+
+A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](https://lopaka.app/) — click **UI Designer** in the sidebar:
+
+- **Design on a live 128×64 canvas** (zoom, pixel grid, orange device theme) with text (FontPrimary / FontSecondary / FontBigNumbers), boxes, frames, rounded variants, lines, circles, discs, dots
+- **Icon palette with drag & drop** — built-in icons (arrows, battery, wifi, bluetooth, gear, heart, star, …) plus **Paste XBM** to add your own bitmaps
+- **Multiple screens per app** — tab bar to add/rename/duplicate/reorder/delete screens
+- **Full editing** — drag to move, arrow-key nudge, layers panel with z-order, per-element properties, duplicate/delete, undo/redo (Ctrl+Z / Ctrl+Y)
+- **Code generation that actually builds**:
+  - **Copy Screen Code** — the `canvas_*` draw calls (+ icon XBM arrays) for the current screen
+  - **Insert at Cursor** — drop that snippet straight into the file you're editing
+  - **Copy Full App** — a complete `main.c` with a screen enum, draw/input callbacks, and ◀/▶ screen switching
+  - **Create App…** — scaffolds a ready-to-build app folder (`application.fam` + `main.c`) and makes it the active app
+- Designs autosave, and **Export/Import JSON** lets you keep them with your project
+
+*Text preview uses a close 5×7 approximation — exact pixel metrics can differ slightly on device fonts.*
 
 ---
 

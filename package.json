@@ -2,7 +2,7 @@
   "name": "flipper-fap-studio",
   "displayName": "Flipper FAP Studio",
   "description": "GUI-first VS Code extension for building Flipper Zero .fap apps with uFBT — build, launch, and manage firmware SDKs without the command line",
-  "version": "0.8.6",
+  "version": "0.9.0",
   "publisher": "coolshrimp",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -184,6 +184,12 @@
         "command": "flipperFapStudio.screen.open",
         "title": "Live Screen Preview",
         "icon": "$(device-camera-video)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.designer.open",
+        "title": "UI Designer",
+        "icon": "$(layout)",
         "category": "Flipper FAP Studio"
       },
       {

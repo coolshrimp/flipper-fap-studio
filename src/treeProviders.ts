@@ -382,6 +382,12 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
                 md('**Create starter app**\n\nScaffold a new Flipper app with `application.fam` and a `main.c` template.\n\nYou\'ll be prompted for a name and a parent folder (or use the default set in Settings).')
             ),
             new ButtonItem(
+                'UI Designer',
+                'flipperFapStudio.designer.open',
+                new vscode.ThemeIcon('layout', PURPLE),
+                md('**UI Designer**\n\nVisually design 128×64 screens (lopaka-style):\n- Drag & drop text, shapes, and icons\n- Multiple screens per app\n- Generates `canvas_*` draw code — copy it, insert at cursor, or **create a complete buildable app** from the design')
+            ),
+            new ButtonItem(
                 'Select firmware target',
                 'flipperFapStudio.selectTarget',
                 new vscode.ThemeIcon('circuit-board', PURPLE),

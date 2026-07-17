@@ -4,6 +4,20 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.9.0] — 2026-07-17
+
+### Added
+- **UI Designer** — a lopaka.app-style visual editor for 128×64 Flipper screens (sidebar button / `Flipper FAP Studio: UI Designer`):
+  - Live 1-bit canvas with zoom + pixel grid; text (3 fonts), box/frame, rbox/rframe, line, circle/disc, dot
+  - **Icon palette with drag & drop** (18 built-in icons) and **Paste XBM** for custom bitmaps
+  - **Multi-screen support** — add/rename/duplicate/reorder screens via tabs
+  - Layers panel (z-order, duplicate, delete), per-element properties, drag-to-move, arrow-key nudge, undo/redo
+  - **Code export**: Copy Screen Code (canvas_* calls + XBM arrays), Insert at Cursor into the active editor, Copy Full App `main.c`, and **Create App…** which scaffolds a complete buildable app (`application.fam` + `main.c`, screen switching with ◀/▶, Back to exit) and sets it active
+  - Generated app output verified to compile to a `.fap` with ufbt (API 87.1)
+  - Designs autosave; Export/Import as JSON
+
+---
+
 ## [0.8.6] — 2026-07-17
 
 ### Added
