@@ -8,6 +8,7 @@ import { showGuidePanel } from './guidePanel';
 import { FirmwareStatusItem, RecentProjectItem, FW_META } from './treeProviders';
 import { buildState } from './buildState';
 import { getErrorHints, formatHintsForModal } from './errorHints';
+import { flipperSerial } from './serial/flipperSerial';
 
 const out = vscode.window.createOutputChannel('Flipper FAP Studio');
 
@@ -93,7 +94,15 @@ export function registerCommands(
         const launching = vscode.window.setStatusBarMessage('$(sync~spin) Launching on Flipper…');
         buildState.begin({ kill: () => undefined } as never);
         refresh();
-        const launchResult = await runUfbt(folder, ['launch'], out);
+        // ufbt launch needs exclusive access to the COM port — pause our serial
+        // session (log / screen stream) and restore it once the push completes
+        const serialPause = await flipperSerial.suspendForExternal('pushing .fap to Flipper');
+        let launchResult;
+        try {
+            launchResult = await runUfbt(folder, ['launch'], out);
+        } finally {
+            await serialPause.resume();
+        }
         buildState.end();
         launching.dispose();
         refresh();

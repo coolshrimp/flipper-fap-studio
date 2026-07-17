@@ -347,6 +347,27 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
             new SeparatorItem(),
 
             new ButtonItem(
+                'Live Screen Preview',
+                'flipperFapStudio.screen.open',
+                new vscode.ThemeIcon('device-camera-video', PURPLE),
+                md('**Live Screen Preview**\n\nMirror the Flipper\'s display in real time (like qFlipper):\n- Control it with the on-screen D-pad or your keyboard\n- Save or copy screenshots\n- RPC event log strip\n\n_Requires the Flipper connected via USB (close qFlipper first)._')
+            ),
+            new ButtonItem(
+                'Serial Log',
+                'flipperSerialLog.focus',
+                new vscode.ThemeIcon('output', PURPLE),
+                md('**Serial Log**\n\nStream live device logs over USB.\n\nLogs pause automatically while a build pushes a .fap to the Flipper, then resume.')
+            ),
+            new ButtonItem(
+                'Flipper Files',
+                'flipperDeviceFiles.focus',
+                new vscode.ThemeIcon('files', PURPLE),
+                md('**Flipper Files**\n\nBrowse the SD card and internal flash of the connected Flipper — open, upload, download, rename, and delete files.')
+            ),
+
+            new SeparatorItem(),
+
+            new ButtonItem(
                 'Create starter app',
                 'flipperFapStudio.createStarterApp',
                 new vscode.ThemeIcon('new-folder', PURPLE),

@@ -4,6 +4,10 @@ import { registerCommands } from './commands';
 import { StateManager } from './stateManager';
 import { buildState } from './buildState';
 import { FirmwareViewProvider } from './firmwareView';
+import { SerialLogViewProvider } from './serialLogView';
+import { FlipperFsProvider, registerFsCommands } from './flipperFsView';
+import { ScreenPanel } from './screenPanel';
+import { flipperSerial } from './serial/flipperSerial';
 
 export function activate(context: vscode.ExtensionContext) {
     const state = new StateManager(context);
@@ -17,6 +21,28 @@ export function activate(context: vscode.ExtensionContext) {
     const firmwareView = new FirmwareViewProvider(state);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(FirmwareViewProvider.viewId, firmwareView)
+    );
+
+    // ── Device features (serial log, screen preview, file browser) ────────────
+    context.subscriptions.push(flipperSerial);
+
+    const serialLogView = new SerialLogViewProvider(context);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(SerialLogViewProvider.viewId, serialLogView, {
+            webviewOptions: { retainContextWhenHidden: true },
+        })
+    );
+
+    const fsProvider = new FlipperFsProvider();
+    vscode.window.registerTreeDataProvider('flipperDeviceFiles', fsProvider);
+    registerFsCommands(context, fsProvider);
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('flipperFapStudio.screen.open', () => ScreenPanel.show(context)),
+        vscode.commands.registerCommand('flipperFapStudio.serial.startLog', () =>
+            flipperSerial.startLog().catch(err => vscode.window.showErrorMessage(`Flipper serial: ${err.message}`))),
+        vscode.commands.registerCommand('flipperFapStudio.serial.stopLog', () => flipperSerial.stopLog()),
+        vscode.commands.registerCommand('flipperFapStudio.serial.disconnect', () => flipperSerial.disconnect()),
     );
 
     const refresh = () => { mainProvider.refresh(); recentProvider.refresh(); firmwareView.refresh(); };

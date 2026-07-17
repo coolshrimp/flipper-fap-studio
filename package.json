@@ -58,6 +58,16 @@
           "type": "tree"
         },
         {
+          "id": "flipperSerialLog",
+          "name": "Serial Log",
+          "type": "webview"
+        },
+        {
+          "id": "flipperDeviceFiles",
+          "name": "Flipper Files",
+          "type": "tree"
+        },
+        {
           "id": "flipperRecentProjects",
           "name": "Recent Projects",
           "type": "tree"
@@ -168,6 +178,75 @@
         "title": "Open Update Page",
         "icon": "$(link-external)",
         "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.screen.open",
+        "title": "Live Screen Preview",
+        "icon": "$(device-camera-video)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.serial.startLog",
+        "title": "Start Serial Log",
+        "icon": "$(play)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.serial.stopLog",
+        "title": "Stop Serial Log",
+        "icon": "$(stop)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.serial.disconnect",
+        "title": "Disconnect Flipper Serial",
+        "icon": "$(debug-disconnect)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.refresh",
+        "title": "Refresh Flipper Files",
+        "icon": "$(refresh)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.open",
+        "title": "Open File from Flipper",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.upload",
+        "title": "Upload Files Here…",
+        "icon": "$(cloud-upload)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.download",
+        "title": "Download…",
+        "icon": "$(cloud-download)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.mkdir",
+        "title": "New Folder…",
+        "icon": "$(new-folder)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.rename",
+        "title": "Rename…",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.delete",
+        "title": "Delete",
+        "icon": "$(trash)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.copyPath",
+        "title": "Copy Device Path",
+        "category": "Flipper FAP Studio"
       }
     ],
     "menus": {
@@ -186,9 +265,74 @@
           "command": "flipperFapStudio.refresh",
           "when": "view == flipperMain",
           "group": "navigation@3"
+        },
+        {
+          "command": "flipperFapStudio.screen.open",
+          "when": "view == flipperSerialLog",
+          "group": "navigation@1"
+        },
+        {
+          "command": "flipperFapStudio.serial.disconnect",
+          "when": "view == flipperSerialLog",
+          "group": "navigation@2"
+        },
+        {
+          "command": "flipperFapStudio.files.upload",
+          "when": "view == flipperDeviceFiles",
+          "group": "navigation@1"
+        },
+        {
+          "command": "flipperFapStudio.files.mkdir",
+          "when": "view == flipperDeviceFiles",
+          "group": "navigation@2"
+        },
+        {
+          "command": "flipperFapStudio.files.refresh",
+          "when": "view == flipperDeviceFiles",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
+        {
+          "command": "flipperFapStudio.files.upload",
+          "when": "view == flipperDeviceFiles && viewItem == flipperDir",
+          "group": "inline@1"
+        },
+        {
+          "command": "flipperFapStudio.files.download",
+          "when": "view == flipperDeviceFiles && viewItem == flipperFile",
+          "group": "inline@1"
+        },
+        {
+          "command": "flipperFapStudio.files.mkdir",
+          "when": "view == flipperDeviceFiles && viewItem == flipperDir",
+          "group": "1_ops@1"
+        },
+        {
+          "command": "flipperFapStudio.files.upload",
+          "when": "view == flipperDeviceFiles && viewItem == flipperDir",
+          "group": "1_ops@2"
+        },
+        {
+          "command": "flipperFapStudio.files.download",
+          "when": "view == flipperDeviceFiles && viewItem == flipperFile",
+          "group": "1_ops@3"
+        },
+        {
+          "command": "flipperFapStudio.files.rename",
+          "when": "view == flipperDeviceFiles && viewItem =~ /^flipper(Dir|File)$/",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "flipperFapStudio.files.delete",
+          "when": "view == flipperDeviceFiles && viewItem =~ /^flipper(Dir|File)$/",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "flipperFapStudio.files.copyPath",
+          "when": "view == flipperDeviceFiles && viewItem =~ /^flipper(Dir|File)$/",
+          "group": "3_util@1"
+        },
         {
           "command": "flipperFapStudio.recent.openWindow",
           "when": "view == flipperRecentProjects && viewItem == recentProject",
@@ -223,6 +367,11 @@
           "type": "string",
           "default": "",
           "description": "Default folder containing the Flipper app source"
+        },
+        "flipperFapStudio.serialPort": {
+          "type": "string",
+          "default": "",
+          "description": "COM port of the Flipper Zero (e.g. COM3). Leave blank to auto-detect."
         },
         "flipperFapStudio.defaultTarget": {
           "type": "string",
