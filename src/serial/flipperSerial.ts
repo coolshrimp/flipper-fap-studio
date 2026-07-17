@@ -49,10 +49,13 @@ interface PendingRequest {
 export class FlipperSerial {
     // ── desired-state flags ───────────────────────────────────────────────────
     private wantLog = false;
-    private wantStream = false;
+    private streamConsumers = new Set<string>();
     private rpcHold = 0;
     private suspendCount = 0;
     private userConnected = false;
+
+    /** true while any screen-preview surface (sidebar view / editor tab) is open */
+    private get wantStream(): boolean { return this.streamConsumers.size > 0; }
 
     // ── live state ────────────────────────────────────────────────────────────
     private port: SerialPort | null = null;
@@ -123,7 +126,7 @@ export class FlipperSerial {
     async disconnect(): Promise<void> {
         this.userConnected = false;
         this.wantLog = false;
-        this.wantStream = false;
+        this.streamConsumers.clear();
         await this.reconcile();
     }
 
@@ -138,10 +141,17 @@ export class FlipperSerial {
         await this.reconcile();
     }
 
-    /** Screen preview panel opened / closed. */
-    async setStreamActive(active: boolean): Promise<void> {
-        this.wantStream = active;
-        if (active) { this.userConnected = true; }
+    /**
+     * A screen-preview surface (sidebar view or editor tab) opened or closed.
+     * Streaming stays active while at least one consumer remains.
+     */
+    async setStreamConsumer(id: string, active: boolean): Promise<void> {
+        if (active) {
+            this.streamConsumers.add(id);
+            this.userConnected = true;
+        } else {
+            this.streamConsumers.delete(id);
+        }
         await this.reconcile();
     }
 

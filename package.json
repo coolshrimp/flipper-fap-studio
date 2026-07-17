@@ -58,6 +58,12 @@
           "type": "tree"
         },
         {
+          "id": "flipperScreen",
+          "name": "Live Screen",
+          "type": "webview",
+          "visibility": "collapsed"
+        },
+        {
           "id": "flipperSerialLog",
           "name": "Serial Log",
           "type": "webview"
@@ -186,6 +192,12 @@
         "category": "Flipper FAP Studio"
       },
       {
+        "command": "flipperFapStudio.screen.openTab",
+        "title": "Open Screen in Editor Tab",
+        "icon": "$(link-external)",
+        "category": "Flipper FAP Studio"
+      },
+      {
         "command": "flipperFapStudio.serial.startLog",
         "title": "Start Serial Log",
         "icon": "$(play)",
@@ -267,8 +279,8 @@
           "group": "navigation@3"
         },
         {
-          "command": "flipperFapStudio.screen.open",
-          "when": "view == flipperSerialLog",
+          "command": "flipperFapStudio.screen.openTab",
+          "when": "view == flipperScreen",
           "group": "navigation@1"
         },
         {

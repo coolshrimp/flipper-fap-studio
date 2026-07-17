@@ -6,7 +6,7 @@ import { buildState } from './buildState';
 import { FirmwareViewProvider } from './firmwareView';
 import { SerialLogViewProvider } from './serialLogView';
 import { FlipperFsProvider, registerFsCommands } from './flipperFsView';
-import { ScreenPanel } from './screenPanel';
+import { ScreenPanel, ScreenViewProvider } from './screenPanel';
 import { flipperSerial } from './serial/flipperSerial';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -38,7 +38,15 @@ export function activate(context: vscode.ExtensionContext) {
     registerFsCommands(context, fsProvider);
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('flipperFapStudio.screen.open', () => ScreenPanel.show(context)),
+        vscode.window.registerWebviewViewProvider(ScreenViewProvider.viewId, new ScreenViewProvider(), {
+            webviewOptions: { retainContextWhenHidden: true },
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('flipperFapStudio.screen.open', () =>
+            vscode.commands.executeCommand('flipperScreen.focus')),
+        vscode.commands.registerCommand('flipperFapStudio.screen.openTab', () => ScreenPanel.show(context)),
         vscode.commands.registerCommand('flipperFapStudio.serial.startLog', () =>
             flipperSerial.startLog().catch(err => vscode.window.showErrorMessage(`Flipper serial: ${err.message}`))),
         vscode.commands.registerCommand('flipperFapStudio.serial.stopLog', () => flipperSerial.stopLog()),

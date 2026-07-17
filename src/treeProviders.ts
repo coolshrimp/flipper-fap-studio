@@ -350,7 +350,7 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
                 'Live Screen Preview',
                 'flipperFapStudio.screen.open',
                 new vscode.ThemeIcon('device-camera-video', PURPLE),
-                md('**Live Screen Preview**\n\nMirror the Flipper\'s display in real time (like qFlipper):\n- Control it with the on-screen D-pad or your keyboard\n- Save or copy screenshots\n- RPC event log strip\n\n_Requires the Flipper connected via USB (close qFlipper first)._')
+                md('**Live Screen Preview**\n\nOpens the **Live Screen** panel below — mirror the Flipper\'s display in real time (like qFlipper):\n- Control it with the on-screen D-pad or your keyboard\n- Save or copy screenshots\n- Pop out to a full-size editor tab with the ⧉ button\n\n_Requires the Flipper connected via USB (close qFlipper first)._')
             ),
             new ButtonItem(
                 'Serial Log',

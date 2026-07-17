@@ -77,12 +77,12 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 Everything below talks to the Flipper over its USB serial port directly — close qFlipper / lab.flipper.net first, since only one program can hold the port at a time.
 
-### Live Screen Preview
+### Live Screen
 
-Click **Live Screen Preview** in the sidebar (or run *Flipper FAP Studio: Live Screen Preview*) to mirror the device display in real time and control it remotely:
+Expand the **Live Screen** panel in the sidebar (or click **Live Screen Preview**) to mirror the device display in real time and control it remotely. Streaming starts when the panel is visible and stops when it's collapsed, so it never hogs the port. Use **⧉ Pop Out** for a full-size editor tab.
 
 - **D-pad / OK / Back** buttons, exactly like qFlipper
-- **Keyboard control** while the panel is focused — `W/A/S/D` or arrow keys, `Space`/`Enter` = OK, `Backspace`/`Esc` = Back; **hold** any key for a long-press (with repeat)
+- **Keyboard control** while the preview is focused — `W/A/S/D` or arrow keys, `Space`/`Enter` = OK, `Backspace`/`Esc` = Back; **hold** any key for a long-press (with repeat)
 - **▣ Save Screenshot** exports a crisp 4× PNG; **Ctrl+C** copies it straight to the clipboard
 - Collapsible **LOGS** strip showing connection and RPC events
 

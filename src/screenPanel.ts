@@ -13,8 +13,98 @@ const TYPE_MAP: Record<string, InputType> = {
 };
 
 /**
- * Live screen preview panel — qFlipper-style remote display with
- * D-pad / keyboard control, screenshots, and an RPC log strip.
+ * Wire a webview (sidebar view or editor tab) to the shared serial manager:
+ * forward frames/status/state in, handle input/screenshot/reconnect out.
+ * The returned disposables must be disposed together with the webview.
+ */
+function attachScreen(webview: vscode.Webview, consumerId: string): vscode.Disposable[] {
+    const post = (msg: unknown) => void webview.postMessage(msg);
+
+    const subs: vscode.Disposable[] = [
+        flipperSerial.onScreenFrame(f => post({
+            type: 'frame', data: f.data.toString('base64'), orientation: f.orientation,
+        })),
+        flipperSerial.onStatus(s => post({ type: 'status', level: s.level, text: s.text })),
+        flipperSerial.onDidChangeState(state => post({ type: 'state', state })),
+    ];
+
+    const connect = async () => {
+        try {
+            await flipperSerial.setStreamConsumer(consumerId, true);
+        } catch (err) {
+            post({ type: 'status', level: 'error', text: (err as Error).message });
+        }
+    };
+
+    subs.push(webview.onDidReceiveMessage(async (msg: { type: string; [k: string]: unknown }) => {
+        switch (msg.type) {
+            case 'ready':
+                post({ type: 'state', state: flipperSerial.getState() });
+                void connect();
+                break;
+            case 'reconnect':
+                void connect();
+                break;
+            case 'input': {
+                const key = KEY_MAP[msg.key as string];
+                const type = TYPE_MAP[msg.event as string];
+                if (key === undefined || type === undefined) { return; }
+                flipperSerial.sendInput(key, type).catch(err =>
+                    post({ type: 'status', level: 'error', text: `Input failed: ${(err as Error).message}` }));
+                break;
+            }
+            case 'openTab':
+                void vscode.commands.executeCommand('flipperFapStudio.screen.openTab');
+                break;
+            case 'screenshot':
+                await saveScreenshot(msg.dataUrl as string);
+                break;
+        }
+    }));
+
+    return subs;
+}
+
+async function saveScreenshot(dataUrl: string) {
+    const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+    const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+    const defaultDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
+    const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(path.join(defaultDir, `flipper_${stamp}.png`)),
+        filters: { 'PNG image': ['png'] },
+        title: 'Save Flipper screenshot',
+    });
+    if (!uri) { return; }
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(base64, 'base64'));
+    const action = await vscode.window.showInformationMessage(`Screenshot saved: ${path.basename(uri.fsPath)}`, 'Open');
+    if (action === 'Open') { await vscode.commands.executeCommand('vscode.open', uri); }
+}
+
+/**
+ * "Live Screen" sidebar view — the default surface for the screen preview.
+ * Streams only while the view is visible, so collapsing it (or switching to
+ * another activity-bar icon) hands the port back to the device log.
+ */
+export class ScreenViewProvider implements vscode.WebviewViewProvider {
+    static readonly viewId = 'flipperScreen';
+
+    resolveWebviewView(view: vscode.WebviewView): void {
+        view.webview.options = { enableScripts: true };
+        view.webview.html = html(true);
+        const subs = attachScreen(view.webview, 'sidebar');
+
+        view.onDidChangeVisibility(() => {
+            void flipperSerial.setStreamConsumer('sidebar', view.visible);
+        });
+        view.onDidDispose(() => {
+            subs.forEach(d => d.dispose());
+            void flipperSerial.setStreamConsumer('sidebar', false);
+        });
+    }
+}
+
+/**
+ * Editor-tab variant ("pop out") — same UI at full size.
  */
 export class ScreenPanel {
     private static current: ScreenPanel | null = null;
@@ -28,87 +118,28 @@ export class ScreenPanel {
     }
 
     private readonly panel: vscode.WebviewPanel;
-    private readonly subs: vscode.Disposable[] = [];
 
     private constructor(context: vscode.ExtensionContext) {
         this.panel = vscode.window.createWebviewPanel(
-            'flipperScreen',
+            'flipperScreenTab',
             'Flipper Screen',
             vscode.ViewColumn.Beside,
             { enableScripts: true, retainContextWhenHidden: true }
         );
         this.panel.iconPath = vscode.Uri.file(path.join(context.extensionPath, 'media', 'flipper-icon.svg'));
-        this.panel.webview.html = html();
+        this.panel.webview.html = html(false);
 
-        this.subs.push(
-            flipperSerial.onScreenFrame(f => this.post({
-                type: 'frame', data: f.data.toString('base64'), orientation: f.orientation,
-            })),
-            flipperSerial.onStatus(s => this.post({ type: 'status', level: s.level, text: s.text })),
-            flipperSerial.onDidChangeState(state => this.post({ type: 'state', state })),
-        );
-
-        this.panel.webview.onDidReceiveMessage(msg => this.onMessage(msg), null, this.subs);
+        const subs = attachScreen(this.panel.webview, 'tab');
 
         this.panel.onDidDispose(() => {
             ScreenPanel.current = null;
-            this.subs.forEach(d => d.dispose());
-            void flipperSerial.setStreamActive(false);
+            subs.forEach(d => d.dispose());
+            void flipperSerial.setStreamConsumer('tab', false);
         }, null, context.subscriptions);
-    }
-
-    private post(msg: unknown) {
-        void this.panel.webview.postMessage(msg);
-    }
-
-    private async onMessage(msg: { type: string; [k: string]: unknown }) {
-        switch (msg.type) {
-            case 'ready':
-                this.post({ type: 'state', state: flipperSerial.getState() });
-                void this.connect();
-                break;
-            case 'reconnect':
-                void this.connect();
-                break;
-            case 'input': {
-                const key = KEY_MAP[msg.key as string];
-                const type = TYPE_MAP[msg.event as string];
-                if (key === undefined || type === undefined) { return; }
-                flipperSerial.sendInput(key, type).catch(err =>
-                    this.post({ type: 'status', level: 'error', text: `Input failed: ${(err as Error).message}` }));
-                break;
-            }
-            case 'screenshot':
-                await this.saveScreenshot(msg.dataUrl as string);
-                break;
-        }
-    }
-
-    private async connect() {
-        try {
-            await flipperSerial.setStreamActive(true);
-        } catch (err) {
-            this.post({ type: 'status', level: 'error', text: (err as Error).message });
-        }
-    }
-
-    private async saveScreenshot(dataUrl: string) {
-        const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
-        const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
-        const defaultDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
-        const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(path.join(defaultDir, `flipper_${stamp}.png`)),
-            filters: { 'PNG image': ['png'] },
-            title: 'Save Flipper screenshot',
-        });
-        if (!uri) { return; }
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(base64, 'base64'));
-        const action = await vscode.window.showInformationMessage(`Screenshot saved: ${path.basename(uri.fsPath)}`, 'Open');
-        if (action === 'Open') { await vscode.commands.executeCommand('vscode.open', uri); }
     }
 }
 
-function html(): string {
+function html(compact: boolean): string {
     return /* html */ `<!DOCTYPE html>
 <html>
 <head>
@@ -117,12 +148,11 @@ function html(): string {
     :root {
         --orange: #ff8c1a;
         --orange-dim: #a35a12;
-        --bg: #100d0a;
         --screen-bg: #ff8b27;
     }
     * { box-sizing: border-box; user-select: none; }
     body {
-        margin: 0; padding: 14px;
+        margin: 0; padding: ${compact ? '8px' : '14px'};
         background:
             linear-gradient(rgba(255,140,26,.05) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,140,26,.05) 1px, transparent 1px),
@@ -130,39 +160,41 @@ function html(): string {
         background-size: 22px 22px;
         color: var(--orange);
         font-family: 'Consolas', 'Courier New', monospace;
-        display: flex; flex-direction: column; align-items: center; gap: 12px;
-        min-height: 100vh;
+        display: flex; flex-direction: column; align-items: center; gap: ${compact ? '8px' : '12px'};
+        min-height: ${compact ? 'auto' : '100vh'};
     }
     #topbar {
         width: 100%; max-width: 760px;
         display: flex; align-items: center; justify-content: space-between;
-        font-size: 12px; letter-spacing: 1px;
+        font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     #statusDot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #666; margin-right: 6px; }
     #statusDot.on { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
     #statusDot.warn { background: #d29922; box-shadow: 0 0 6px #d29922; }
     #main {
-        display: flex; gap: 26px; align-items: center; justify-content: center;
-        flex-wrap: wrap;
+        width: 100%;
+        display: flex; gap: ${compact ? '14px' : '26px'};
+        align-items: center; justify-content: center; flex-wrap: wrap;
     }
     #bezel {
+        flex: 0 1 538px; min-width: 220px;
         background: var(--screen-bg);
         border: 3px solid var(--orange-dim);
         border-radius: 14px;
-        padding: 12px;
+        padding: ${compact ? '8px' : '12px'};
         box-shadow: 0 0 24px rgba(255,140,26,.18);
     }
     canvas {
         display: block;
-        width: 512px; height: 256px;
+        width: 100%; height: auto;
         image-rendering: pixelated;
         outline: none;
     }
-    @media (max-width: 820px) { canvas { width: 384px; height: 192px; } }
     /* ── controls ── */
-    #controls { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    #controls { display: flex; flex-direction: column; align-items: center; gap: ${compact ? '10px' : '16px'}; }
     #dpad {
-        position: relative; width: 168px; height: 168px;
+        position: relative;
+        width: ${compact ? '128px' : '168px'}; height: ${compact ? '128px' : '168px'};
         border: 3px solid var(--orange-dim); border-radius: 50%;
         display: grid;
         grid-template: repeat(3, 1fr) / repeat(3, 1fr);
@@ -170,53 +202,53 @@ function html(): string {
     }
     .pad {
         background: none; border: none; cursor: pointer;
-        color: var(--orange); font-size: 26px; line-height: 1;
-        padding: 8px; border-radius: 8px;
+        color: var(--orange); font-size: ${compact ? '19px' : '26px'}; line-height: 1;
+        padding: ${compact ? '5px' : '8px'}; border-radius: 8px;
     }
     .pad:hover { background: rgba(255,140,26,.12); }
     .pad:active, .pad.active { background: rgba(255,140,26,.3); color: #ffd9ad; }
     #btnOk {
-        width: 54px; height: 54px; border-radius: 50%;
+        width: ${compact ? '42px' : '54px'}; height: ${compact ? '42px' : '54px'}; border-radius: 50%;
         border: 3px solid var(--orange); background: rgba(255,140,26,.15);
-        font-size: 11px; letter-spacing: 1px; color: var(--orange); cursor: pointer;
+        font-size: ${compact ? '10px' : '11px'}; letter-spacing: 1px; color: var(--orange); cursor: pointer;
     }
     #btnOk:hover { background: rgba(255,140,26,.3); }
     #btnOk:active, #btnOk.active { background: var(--orange); color: #100d0a; }
     #btnBack {
         align-self: flex-end;
-        width: 44px; height: 44px; border-radius: 50%;
+        width: ${compact ? '36px' : '44px'}; height: ${compact ? '36px' : '44px'}; border-radius: 50%;
         border: 3px solid var(--orange-dim); background: none;
-        color: var(--orange); font-size: 20px; cursor: pointer;
+        color: var(--orange); font-size: ${compact ? '16px' : '20px'}; cursor: pointer;
     }
     #btnBack:hover { background: rgba(255,140,26,.12); }
     #btnBack:active, #btnBack.active { background: rgba(255,140,26,.3); }
     /* ── bottom bar ── */
-    #actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    #actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
     .btn {
         background: none; cursor: pointer;
         border: 2px solid var(--orange); border-radius: 6px;
-        color: var(--orange); padding: 7px 16px;
-        font-family: inherit; font-size: 12px; letter-spacing: 1px;
+        color: var(--orange); padding: ${compact ? '5px 10px' : '7px 16px'};
+        font-family: inherit; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     .btn:hover { background: rgba(255,140,26,.15); }
     .btn:disabled { opacity: .4; cursor: default; }
     #hint {
-        font-size: 10.5px; letter-spacing: .5px; color: var(--orange-dim);
-        text-align: center;
+        font-size: ${compact ? '9px' : '10.5px'}; letter-spacing: .5px; color: var(--orange-dim);
+        text-align: center; line-height: 1.6;
     }
     /* ── logs strip ── */
     #logsWrap { width: 100%; max-width: 760px; }
     #logsHeader {
-        display: flex; align-items: center; gap: 10px;
+        display: flex; align-items: center; gap: 8px;
         border: 2px solid var(--orange-dim); border-radius: 6px;
-        padding: 5px 10px; cursor: pointer; font-size: 12px; letter-spacing: 1px;
+        padding: 4px 8px; cursor: pointer; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     #logsHeader:hover { background: rgba(255,140,26,.08); }
     #statusLine { flex: 1; opacity: .9; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     #logs {
         display: none; margin-top: 6px; max-height: 140px; overflow-y: auto;
         background: #000; border: 1px solid var(--orange-dim); border-radius: 6px;
-        padding: 6px 8px; font-size: 11px; line-height: 1.5;
+        padding: 6px 8px; font-size: ${compact ? '10px' : '11px'}; line-height: 1.5;
     }
     #logs.open { display: block; }
     .li  { color: #e8e6e3; } .li b { color: var(--orange); font-weight: normal; }
@@ -244,10 +276,11 @@ function html(): string {
     </div>
 
     <div id="actions">
-        <button class="btn" id="btnShot">▣ SAVE SCREENSHOT</button>
+        <button class="btn" id="btnShot" title="Save a 4× PNG of the current screen">▣ ${compact ? 'SCREENSHOT' : 'SAVE SCREENSHOT'}</button>
+        ${compact ? '<button class="btn" id="btnPop" title="Open the screen preview in a full-size editor tab">⧉ POP OUT</button>' : ''}
         <button class="btn" id="btnReconnect" style="display:none">↻ RECONNECT</button>
     </div>
-    <div id="hint">W/↑ · A/← · S/↓ · D/→ &nbsp;|&nbsp; SPACE / ENTER = OK &nbsp;|&nbsp; BACKSPACE / ESC = BACK &nbsp;|&nbsp; CTRL+C = COPY SCREENSHOT &nbsp;|&nbsp; HOLD = LONG PRESS</div>
+    <div id="hint">W/↑ · A/← · S/↓ · D/→ &nbsp;|&nbsp; SPACE/ENTER = OK &nbsp;|&nbsp; BKSP/ESC = BACK<br>CTRL+C = COPY SCREENSHOT &nbsp;|&nbsp; HOLD = LONG PRESS &nbsp;<i>(click the preview first)</i></div>
 
     <div id="logsWrap">
         <div id="logsHeader"><span id="logsArrow">▸</span> LOGS <span id="statusLine">READY.</span></div>
@@ -258,7 +291,6 @@ function html(): string {
     const vscode = acquireVsCodeApi();
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
-    const BG = '#ff8b27', FG = '#1e1005';
     let lastFrame = null;
 
     // ── frame rendering (SSD1306-style pages: bit b of byte i → x=i%128, y=(i>>7)*8+b) ──
@@ -278,7 +310,7 @@ function html(): string {
         ctx.putImageData(img, 0, 0);
     }
     // initial blank screen
-    ctx.fillStyle = BG; ctx.fillRect(0, 0, 128, 64);
+    ctx.fillStyle = '#ff8b27'; ctx.fillRect(0, 0, 128, 64);
 
     function b64ToBytes(b64) {
         const bin = atob(b64);
@@ -288,7 +320,7 @@ function html(): string {
     }
 
     // ── input handling: click = press/short/release, hold = press/long/repeat…/release ──
-    const held = {}; // key → { longTimer, repeatTimer, isLong }
+    const held = {};
     function send(key, event) { vscode.postMessage({ type: 'input', key, event }); }
 
     function pressKey(key) {
@@ -359,6 +391,9 @@ function html(): string {
     }
     document.getElementById('btnShot').onclick = () =>
         vscode.postMessage({ type: 'screenshot', dataUrl: renderPng().toDataURL('image/png') });
+
+    const btnPop = document.getElementById('btnPop');
+    if (btnPop) btnPop.onclick = () => vscode.postMessage({ type: 'openTab' });
 
     function copyScreenshot() {
         renderPng().toBlob(async blob => {
