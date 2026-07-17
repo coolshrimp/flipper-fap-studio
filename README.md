@@ -86,8 +86,10 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](https://lopaka.app/) — click **UI Designer** in the sidebar:
 
-- **Design on a live 128×64 canvas** (zoom, pixel grid, orange device theme) with text (FontPrimary / FontSecondary / FontBigNumbers), boxes, frames, rounded variants, lines, circles, discs, dots
+- **Design on a live 128×64 canvas** (zoom, pixel grid, orange device theme) with text (FontPrimary / FontSecondary / FontBigNumbers), boxes, frames, rounded variants, lines, circles, discs, dots — plus the standard Flipper **soft-buttons** (`elements_button_left/center/right`) with inverted-label preview
 - **Icon palette with drag & drop** — built-in icons (arrows, battery, wifi, bluetooth, gear, heart, star, …) plus **Paste XBM** to add your own bitmaps
+- **Starter templates** — one click adds a prefab screen: **Dialog**, **Menu**, **Splash**, **Button bar**, or **HUD**
+- **Live code panel with two-way sync** — the generated `canvas_*` code for the current screen sits right below the canvas; drag elements and the code updates, or **edit the code and the canvas follows**
 - **Multiple screens per app** — tab bar to add/rename/duplicate/reorder/delete screens
 - **Full editing** — drag to move, arrow-key nudge, layers panel with z-order, per-element properties, duplicate/delete, undo/redo (Ctrl+Z / Ctrl+Y)
 - **Code generation that actually builds**:

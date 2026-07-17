@@ -248,6 +248,14 @@ function html(): string {
     #xbmBox.open { display: block; }
     #xbmBox textarea { width: 100%; height: 64px; font-size: 10px; }
     .rowBtns { display: flex; gap: 4px; flex-wrap: wrap; }
+    #codePanel { margin-top: 10px; max-width: 980px; }
+    #codeArea {
+        width: 100%; height: 190px; resize: vertical;
+        background: #000; color: #e8e6e3;
+        font-size: 11px; line-height: 1.5; white-space: pre; overflow: auto;
+        user-select: text;
+    }
+    #codeStatus { font-size: 9px; color: var(--orange-dim); text-transform: none; letter-spacing: 0; }
 </style>
 </head>
 <body>
@@ -279,6 +287,17 @@ function html(): string {
                     <button data-add="circle">CIRCLE</button>
                     <button data-add="disc">DISC</button>
                     <button data-add="dot">DOT</button>
+                    <button data-add="button" title="Standard Flipper soft-button (elements_button_left/center/right)">BUTTON</button>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Templates — adds a screen</h3>
+                <div class="palBtns">
+                    <button data-tpl="dialog">DIALOG</button>
+                    <button data-tpl="menu">MENU</button>
+                    <button data-tpl="splash">SPLASH</button>
+                    <button data-tpl="buttons">BUTTONS</button>
+                    <button data-tpl="hud">HUD</button>
                 </div>
             </div>
             <div class="panel">
@@ -336,6 +355,11 @@ function html(): string {
         <button class="small" id="btnImport" title="Load a design JSON">IMPORT</button>
     </div>
     <div id="hint">Drag elements to move · arrows nudge (Shift = 5px) · Del removes · Ctrl+Z/Y undo/redo · Ctrl+D duplicate · Text preview is approximate — device fonts differ slightly. Generated app: ◀/▶ switch screens, Back exits.</div>
+
+    <div class="panel" id="codePanel">
+        <h3>Code — current screen, edits sync both ways &nbsp;<span id="codeStatus"></span></h3>
+        <textarea id="codeArea" spellcheck="false"></textarea>
+    </div>
 
 <script>
 (function() {
@@ -429,9 +453,9 @@ function html(): string {
 
     // ── 1-bit framebuffer rendering ───────────────────────────────────────────
     var buf = new Uint8Array(128 * 64);
-    function setPx(x, y) {
+    function setPx(x, y, v) {
         x = Math.round(x); y = Math.round(y);
-        if (x >= 0 && x < 128 && y >= 0 && y < 64) buf[y * 128 + x] = 1;
+        if (x >= 0 && x < 128 && y >= 0 && y < 64) buf[y * 128 + x] = v === undefined ? 1 : v;
     }
     function drawBoxPx(x, y, w, h) {
         for (var j = 0; j < h; j++) for (var i = 0; i < w; i++) setPx(x + i, y + j);
@@ -480,19 +504,20 @@ function html(): string {
         for (var i = 0; i < 5; i++) cols.push(FONT[o + i]);
         return cols;
     }
-    function drawTextPx(x, yBase, text, font) {
+    function drawTextPx(x, yBase, text, font, ink) {
         var scale = font === 'FontBigNumbers' ? 2 : 1;
         var bold = font === 'FontPrimary';
         var top = yBase - 6 * scale;
         var px = x;
+        var v = ink === undefined ? 1 : ink;
         for (var n = 0; n < text.length; n++) {
             var cols = glyphCols(text.charAt(n));
             for (var i = 0; i < 5; i++) {
                 for (var j = 0; j < 7; j++) {
                     if ((cols[i] >> j) & 1) {
                         for (var sy = 0; sy < scale; sy++) for (var sx = 0; sx < scale; sx++) {
-                            setPx(px + i * scale + sx, top + j * scale + sy);
-                            if (bold) setPx(px + i * scale + sx + 1, top + j * scale + sy);
+                            setPx(px + i * scale + sx, top + j * scale + sy, v);
+                            if (bold) setPx(px + i * scale + sx + 1, top + j * scale + sy, v);
                         }
                     }
                 }
@@ -500,6 +525,23 @@ function html(): string {
             px += (5 * scale) + (bold ? 2 : 1) * scale;
         }
         return px - x;
+    }
+
+    // ── Flipper soft-buttons (elements_button_left/center/right) ─────────────
+    function btnDisplay(el) {
+        if (el.pos === 'left') return '<' + el.text;
+        if (el.pos === 'right') return el.text + '>';
+        return el.text;
+    }
+    function buttonMetrics(el) {
+        var w = textWidth(btnDisplay(el), 'FontSecondary') + 9;
+        var x = el.pos === 'left' ? 0 : el.pos === 'right' ? 128 - w : Math.floor((128 - w) / 2);
+        return { x: x, y: 53, w: w, h: 11 };
+    }
+    function drawButtonPx(el) {
+        var m = buttonMetrics(el);
+        drawRBox(m.x, m.y, m.w, m.h, 2, true);
+        drawTextPx(m.x + 5, 61, btnDisplay(el), 'FontSecondary', 0);
     }
     function textWidth(text, font) {
         var scale = font === 'FontBigNumbers' ? 2 : 1;
@@ -524,6 +566,7 @@ function html(): string {
         else if (el.type === 'disc') drawCirclePx(el.x, el.y, el.r, true);
         else if (el.type === 'dot') setPx(el.x, el.y);
         else if (el.type === 'icon') drawIconPx(el.x, el.y, el.icon);
+        else if (el.type === 'button') drawButtonPx(el);
     }
 
     function elBounds(el) {
@@ -532,6 +575,7 @@ function html(): string {
         if (el.type === 'circle' || el.type === 'disc') { return { x: el.x - el.r, y: el.y - el.r, w: el.r * 2 + 1, h: el.r * 2 + 1 }; }
         if (el.type === 'dot') { return { x: el.x - 1, y: el.y - 1, w: 3, h: 3 }; }
         if (el.type === 'icon') { var ic = icons[el.icon] || { w: 8, h: 8 }; return { x: el.x, y: el.y, w: ic.w, h: ic.h }; }
+        if (el.type === 'button') { return buttonMetrics(el); }
         return { x: el.x, y: el.y, w: el.w, h: el.h };
     }
 
@@ -591,6 +635,7 @@ function html(): string {
                 var label = el.type;
                 if (el.type === 'text') label += ' ' + Q + el.text + Q;
                 if (el.type === 'icon') label += ' ' + el.icon;
+                if (el.type === 'button') label += ' ' + el.pos + ' ' + Q + el.text + Q;
                 d.textContent = (i + 1) + '. ' + label;
                 d.onclick = function() { sel = i; renderAll(); };
                 list.appendChild(d);
@@ -651,6 +696,23 @@ function html(): string {
         } else if (el.type === 'dot') {
             box.appendChild(prow('x', numInput(el.x, function(v) { el.x = v; })));
             box.appendChild(prow('y', numInput(el.y, function(v) { el.y = v; })));
+        } else if (el.type === 'button') {
+            var bt = document.createElement('input');
+            bt.type = 'text'; bt.value = el.text;
+            bt.addEventListener('change', function() { pushUndo(); el.text = bt.value; renderAll(); save(); });
+            box.appendChild(prow('label', bt));
+            var bp = document.createElement('select');
+            ['left', 'center', 'right'].forEach(function(pos) {
+                var o = document.createElement('option');
+                o.value = pos; o.textContent = pos; if (el.pos === pos) o.selected = true;
+                bp.appendChild(o);
+            });
+            bp.addEventListener('change', function() { pushUndo(); el.pos = bp.value; renderAll(); save(); });
+            box.appendChild(prow('position', bp));
+            var note = document.createElement('div');
+            note.style.cssText = 'font-size:9px;color:var(--orange-dim)';
+            note.textContent = 'Standard bottom bar button — position is fixed by the firmware.';
+            box.appendChild(note);
         } else if (el.type === 'icon') {
             var lab = document.createElement('div');
             lab.style.cssText = 'font-size:10px;color:var(--orange-dim)';
@@ -671,6 +733,7 @@ function html(): string {
     }
     function renderAll() {
         renderTabs(); renderCanvas(); renderLayers(); renderProps();
+        renderCode();
     }
 
     // ── icon palette ──────────────────────────────────────────────────────────
@@ -713,12 +776,68 @@ function html(): string {
         else if (type === 'line') { el.x2 = x + 24; el.y2 = y; }
         else if (type === 'circle' || type === 'disc') { el.r = 7; }
         else if (type === 'icon') { el.icon = extra.icon; }
+        else if (type === 'button') { el.pos = 'center'; el.text = 'OK'; }
         screen().elements.push(el);
         sel = screen().elements.length - 1;
         renderAll(); save();
     }
     document.querySelectorAll('[data-add]').forEach(function(b) {
         b.addEventListener('click', function() { addElement(b.dataset.add, {}); });
+    });
+
+    // ── starter templates (each adds a new screen) ────────────────────────────
+    var TEMPLATES = {
+        dialog: { name: 'dialog', elements: [
+            { type: 'rframe', x: 4, y: 4, w: 120, h: 44, r: 4 },
+            { type: 'text', x: 42, y: 18, text: 'Title', font: 'FontPrimary' },
+            { type: 'text', x: 26, y: 32, text: 'Are you sure?', font: 'FontSecondary' },
+            { type: 'button', x: 0, y: 0, pos: 'left', text: 'No' },
+            { type: 'button', x: 0, y: 0, pos: 'right', text: 'Yes' },
+        ] },
+        menu: { name: 'menu', elements: [
+            { type: 'text', x: 4, y: 11, text: 'Menu', font: 'FontPrimary' },
+            { type: 'line', x: 0, y: 14, x2: 127, y2: 14 },
+            { type: 'rframe', x: 2, y: 19, w: 124, h: 13, r: 2 },
+            { type: 'text', x: 8, y: 28, text: 'First item', font: 'FontSecondary' },
+            { type: 'text', x: 8, y: 41, text: 'Second item', font: 'FontSecondary' },
+            { type: 'text', x: 8, y: 54, text: 'Third item', font: 'FontSecondary' },
+        ] },
+        splash: { name: 'splash', elements: [
+            { type: 'icon', x: 60, y: 6, icon: 'star' },
+            { type: 'text', x: 43, y: 32, text: 'My App', font: 'FontPrimary' },
+            { type: 'text', x: 52, y: 44, text: 'v1.0', font: 'FontSecondary' },
+            { type: 'button', x: 0, y: 0, pos: 'center', text: 'Start' },
+        ] },
+        buttons: { name: 'buttons', elements: [
+            { type: 'text', x: 34, y: 30, text: 'Content here', font: 'FontSecondary' },
+            { type: 'button', x: 0, y: 0, pos: 'left', text: 'Back' },
+            { type: 'button', x: 0, y: 0, pos: 'center', text: 'OK' },
+            { type: 'button', x: 0, y: 0, pos: 'right', text: 'Next' },
+        ] },
+        hud: { name: 'hud', elements: [
+            { type: 'icon', x: 2, y: 1, icon: 'signal' },
+            { type: 'icon', x: 114, y: 1, icon: 'battery' },
+            { type: 'text', x: 40, y: 9, text: 'MY DEVICE', font: 'FontSecondary' },
+            { type: 'line', x: 0, y: 12, x2: 127, y2: 12 },
+            { type: 'rframe', x: 14, y: 20, w: 100, h: 28, r: 3 },
+            { type: 'text', x: 34, y: 37, text: 'Status: OK', font: 'FontSecondary' },
+        ] },
+    };
+    document.querySelectorAll('[data-tpl]').forEach(function(b) {
+        b.addEventListener('click', function() {
+            var tpl = TEMPLATES[b.dataset.tpl];
+            if (!tpl) return;
+            pushUndo();
+            var copy = JSON.parse(JSON.stringify(tpl));
+            var base = copy.name;
+            var n = 1;
+            while (design.screens.some(function(s) { return s.name === copy.name; })) { copy.name = base + '_' + (++n); }
+            copy.elements.forEach(function(el) { el.id = nextId++; if (el.x === undefined) el.x = 0; if (el.y === undefined) el.y = 0; });
+            design.screens.push(copy);
+            cur = design.screens.length - 1;
+            sel = -1;
+            renderAll(); save();
+        });
     });
 
     // ── canvas interactions ───────────────────────────────────────────────────
@@ -762,6 +881,7 @@ function html(): string {
         if (drag) {
             if (!drag.moved) undoStack.pop(); // click without move — drop the snapshot
             drag = null;
+            renderCode();
             save();
         }
     });
@@ -791,7 +911,7 @@ function html(): string {
         else if (e.code === 'ArrowRight') { el.x += step; if (el.type === 'line') el.x2 += step; }
         else if (e.code === 'Delete' || e.code === 'Backspace') { delSelected(); return; }
         else moved = false;
-        if (moved) { e.preventDefault(); renderCanvas(); renderProps(); save(); }
+        if (moved) { e.preventDefault(); renderCanvas(); renderProps(); renderCode(); save(); }
     });
 
     function dupSelected() {
@@ -977,8 +1097,16 @@ function html(): string {
                 var ic = icons[el.icon];
                 lines.push(indent + 'canvas_draw_xbm(canvas, ' + el.x + ', ' + el.y + ', ' + ic.w + ', ' + ic.h + ', img_' + cIdent(el.icon) + ');');
             }
+            else if (el.type === 'button') {
+                lines.push(indent + 'elements_button_' + el.pos + '(canvas, ' + Q + escC(el.text) + Q + ');');
+            }
         });
         return lines;
+    }
+    function usesButtons(screens) {
+        return screens.some(function(s) {
+            return s.elements.some(function(el) { return el.type === 'button'; });
+        });
     }
     function snippetForScreen() {
         var s = screen();
@@ -988,6 +1116,9 @@ function html(): string {
             parts.push('// Icon bitmaps (XBM, row-major LSB-first) — place at file scope:');
             iconNames.forEach(function(n) { parts.push(iconArray(n)); });
             parts.push('');
+        }
+        if (usesButtons([s])) {
+            parts.push('// Soft-buttons need: #include <gui/elements.h>');
         }
         parts.push('// Screen: ' + s.name + ' (drawn inside your draw callback)');
         parts.push('canvas_clear(canvas);');
@@ -1001,6 +1132,7 @@ function html(): string {
         lines.push('#include <furi.h>');
         lines.push('#include <gui/gui.h>');
         lines.push('#include <gui/view_port.h>');
+        if (usesButtons(screens)) { lines.push('#include <gui/elements.h>'); }
         lines.push('');
         lines.push('// Generated by Flipper FAP Studio UI Designer');
         var iconNames = usedIcons(screens);
@@ -1111,6 +1243,89 @@ function html(): string {
     document.getElementById('btnImport').onclick = function() {
         vscode.postMessage({ type: 'importJson' });
     };
+
+    // ── code panel: generated code ⇄ elements (two-way sync) ─────────────────
+    var codeArea = document.getElementById('codeArea');
+    var codeStatus = document.getElementById('codeStatus');
+    var codeEditing = false;
+    var codeTimer = null;
+
+    function renderCode() {
+        if (codeEditing) return;
+        var parts = ['// Screen: ' + screen().name + ' — edit this code and the canvas follows'];
+        parts.push('canvas_clear(canvas);');
+        parts = parts.concat(screenCode(screen(), ''));
+        codeArea.value = parts.join(NL);
+        codeStatus.textContent = '';
+    }
+
+    codeArea.addEventListener('focus', function() { codeEditing = true; });
+    codeArea.addEventListener('blur', function() {
+        codeEditing = false;
+        if (codeTimer) { clearTimeout(codeTimer); codeTimer = null; applyCode(); }
+        renderCode();
+    });
+    codeArea.addEventListener('input', function() {
+        if (codeTimer) clearTimeout(codeTimer);
+        codeTimer = setTimeout(function() { codeTimer = null; applyCode(); }, 600);
+    });
+
+    var reStr = /^canvas_draw_str\\s*\\(\\s*canvas\\s*,\\s*(-?[0-9]+)\\s*,\\s*(-?[0-9]+)\\s*,\\s*"(.*)"\\s*\\)$/;
+    var reBtn = /^elements_button_(left|center|right)\\s*\\(\\s*canvas\\s*,\\s*"(.*)"\\s*\\)$/;
+    function unesc(s) { return s.replace(/\\\\(.)/g, '$1'); }
+    function stripLine(t) { return t.trim().replace(/[;]+$/, '').trim(); }
+    function numArgs(t, name, count) {
+        if (t.indexOf(name) !== 0) return null;
+        var after = t.charAt(name.length);
+        if (after !== '(' && after !== ' ') return null;
+        var o = t.indexOf('('), c = t.lastIndexOf(')');
+        if (o < 0 || c < o) return null;
+        var parts = t.slice(o + 1, c).split(',').map(function(s) { return s.trim(); });
+        if (parts[0] !== 'canvas' || parts.length !== count) return null;
+        return parts;
+    }
+
+    function applyCode() {
+        var lines = codeArea.value.split(NL);
+        var els = [];
+        var font = 'FontSecondary';
+        var ignored = 0;
+        for (var li = 0; li < lines.length; li++) {
+            var t = stripLine(lines[li]);
+            if (!t || t.indexOf('//') === 0 || t.indexOf('canvas_clear') === 0) continue;
+            var m = t.match(reStr);
+            if (m) { els.push({ id: nextId++, type: 'text', x: +m[1], y: +m[2], text: unesc(m[3]), font: font }); continue; }
+            m = t.match(reBtn);
+            if (m) { els.push({ id: nextId++, type: 'button', x: 0, y: 0, pos: m[1], text: unesc(m[2]) }); continue; }
+            if (t.indexOf('canvas_set_font') === 0) {
+                if (t.indexOf('FontPrimary') >= 0) font = 'FontPrimary';
+                else if (t.indexOf('FontBigNumbers') >= 0) font = 'FontBigNumbers';
+                else font = 'FontSecondary';
+                continue;
+            }
+            var a;
+            if ((a = numArgs(t, 'canvas_draw_box', 5)))    { els.push({ id: nextId++, type: 'box',    x: +a[1], y: +a[2], w: +a[3], h: +a[4] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_frame', 5)))  { els.push({ id: nextId++, type: 'frame',  x: +a[1], y: +a[2], w: +a[3], h: +a[4] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_rbox', 6)))   { els.push({ id: nextId++, type: 'rbox',   x: +a[1], y: +a[2], w: +a[3], h: +a[4], r: +a[5] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_rframe', 6))) { els.push({ id: nextId++, type: 'rframe', x: +a[1], y: +a[2], w: +a[3], h: +a[4], r: +a[5] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_line', 5)))   { els.push({ id: nextId++, type: 'line',   x: +a[1], y: +a[2], x2: +a[3], y2: +a[4] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_circle', 4))) { els.push({ id: nextId++, type: 'circle', x: +a[1], y: +a[2], r: +a[3] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_disc', 4)))   { els.push({ id: nextId++, type: 'disc',   x: +a[1], y: +a[2], r: +a[3] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_dot', 3)))    { els.push({ id: nextId++, type: 'dot',    x: +a[1], y: +a[2] }); continue; }
+            if ((a = numArgs(t, 'canvas_draw_xbm', 6))) {
+                var nm = a[5].replace(/^img_/, '');
+                if (icons[nm]) { els.push({ id: nextId++, type: 'icon', x: +a[1], y: +a[2], icon: nm }); continue; }
+            }
+            ignored++;
+        }
+        pushUndo();
+        screen().elements = els;
+        if (sel >= els.length) sel = -1;
+        renderCanvas(); renderLayers(); renderProps();
+        codeStatus.textContent = '✓ synced ' + els.length + ' element(s)' +
+            (ignored ? ' · ' + ignored + ' line(s) not recognized (kept out of the design)' : '');
+        save();
+    }
 
     // ── load / init ───────────────────────────────────────────────────────────
     window.addEventListener('message', function(e) {

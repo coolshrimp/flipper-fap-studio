@@ -4,6 +4,16 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.9.1] — 2026-07-17
+
+### Added
+- **UI Designer: live code panel with two-way sync** — the current screen's `canvas_*` code is shown below the canvas; designing updates the code, and editing the code updates the canvas (unrecognized lines are reported and skipped)
+- **UI Designer: Flipper soft-buttons** — `elements_button_left/center/right` as a drag-in element with inverted-label preview; generated code adds `#include <gui/elements.h>` automatically (verified building to `.fap`)
+- **UI Designer: starter templates** — Dialog, Menu, Splash, Button bar, and HUD prefab screens, one click each
+- **GitHub release automation** — pushing a `v*` tag builds the `.vsix` in CI and publishes it as a GitHub Release
+
+---
+
 ## [0.9.0] — 2026-07-17
 
 ### Added
