@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.10.1] — 2026-07-17
+
+### Changed
+- README: added UI Designer screenshots
+
+---
+
 ## [0.10.0] — 2026-07-17
 
 ### Added — UI Designer (lopaka feature parity, Flipper-only)

@@ -86,6 +86,11 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](https://lopaka.app/) — click **UI Designer** in the sidebar:
 
+<img src="screenshots/ScreenshotUiDesigner.png" width="900" alt="Flipper UI Designer — canvas with elements and icons, palettes, layers, properties, and the two-way code panel">
+
+<img src="screenshots/ScreenshotUiDashboard.png" width="900" alt="UI Designer side by side with a code editor and the live device panels">
+
+
 - **Design on a live 128×64 canvas** (zoom 3–10×, pixel grid, orange device theme) with text (all four Flipper fonts), boxes, frames, rounded variants, lines, circles, discs, dots — plus the standard Flipper **soft-buttons** (`elements_button_left/center/right`) with inverted-label preview
 - **Pixel-perfect drawing** — ✎ PENCIL and ⌫ ERASE tools paint freehand pixels onto a movable layer that exports as auto-cropped XBM
 - **Custom images** — **Import Image** converts any PNG/JPG to 1-bit with live threshold/invert preview and auto-generates the XBM; **Paste XBM** for existing bitmaps; custom icons are saved with the design
