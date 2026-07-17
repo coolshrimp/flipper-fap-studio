@@ -4,6 +4,17 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.1] — 2026-07-17
+
+### Changed
+- **Live Screen is now a sidebar panel** (above Serial Log), collapsed by default — expanding it starts streaming, collapsing hands the port back to the log; **⧉ Pop Out** opens the full-size editor tab
+- RPC/connection events now stream into the **Serial Log** panel (`[RPC] …`, color-coded) instead of a separate strip in the sidebar preview
+- Removed the redundant Live Screen Preview / Serial Log / Flipper Files buttons from the main list — each is its own panel now
+- Files view renamed to **Flipper Files (on Device)**; added recursive **Upload Folder…** (bulk upload); the current app's `.fap` and category folder are highlighted with a **⊙ Reveal Current App** title button
+- Version bumped so the update installs cleanly over 0.8.0
+
+---
+
 ## [0.8.0] — 2026-07-17
 
 ### Added
