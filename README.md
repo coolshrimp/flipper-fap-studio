@@ -88,17 +88,18 @@ Expand the **Live Screen** panel in the sidebar (or click **Live Screen Preview*
 
 ### Serial Log
 
-The **Serial Log** view streams the device's live debug log (`log` on the Flipper CLI) with ANSI colors and auto-scroll. Click **▶ Start** / **■ Stop** any time.
+The **Serial Log** view streams the device's live debug log (`log` on the Flipper CLI) with ANSI colors and auto-scroll. Click **▶ Start** / **■ Stop** any time. Connection and RPC events (`[RPC] Screen streaming started`, …) appear inline, qFlipper-style.
 
 **Builds and serial logging share the port automatically:** when you hit **Build + Launch**, the log (or screen stream) pauses just long enough for uFBT to push the `.fap` to the device, then reconnects and resumes on its own — no manual disconnecting.
 
-### Flipper Files
+### Flipper Files (on Device)
 
-The **Flipper Files** view browses the connected device's **SD Card** (`/ext`) and **Internal Flash** (`/int`):
+The **Flipper Files (on Device)** view browses the connected device's **SD Card** (`/ext`) and **Internal Flash** (`/int`):
 
 - Click a file to download and open a copy in the editor
-- Upload files into any folder, create folders, rename, delete
-- Download any file to disk, or copy its device path
+- Upload multiple files at once, or **Upload Folder** to mirror a whole local folder (recursively) onto the device
+- Create folders, rename, delete, download any file to disk, copy its device path
+- Your **current app is highlighted** — the `.fap` built from the active app folder (and its category folder) get a green ★ marker, and the **⊙ Reveal Current App** title button jumps straight to it
 
 File operations, the screen preview, and the serial log all coordinate over one connection — file operations briefly borrow the RPC session and the device log resumes when they're done.
 

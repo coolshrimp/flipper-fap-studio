@@ -70,7 +70,7 @@
         },
         {
           "id": "flipperDeviceFiles",
-          "name": "Flipper Files",
+          "name": "Flipper Files (on Device)",
           "type": "tree"
         },
         {
@@ -233,6 +233,18 @@
         "category": "Flipper FAP Studio"
       },
       {
+        "command": "flipperFapStudio.files.uploadFolder",
+        "title": "Upload Folder Here…",
+        "icon": "$(file-symlink-directory)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.files.revealApp",
+        "title": "Reveal Current App on Device",
+        "icon": "$(target)",
+        "category": "Flipper FAP Studio"
+      },
+      {
         "command": "flipperFapStudio.files.download",
         "title": "Download…",
         "icon": "$(cloud-download)",
@@ -289,12 +301,12 @@
           "group": "navigation@2"
         },
         {
-          "command": "flipperFapStudio.files.upload",
+          "command": "flipperFapStudio.files.revealApp",
           "when": "view == flipperDeviceFiles",
           "group": "navigation@1"
         },
         {
-          "command": "flipperFapStudio.files.mkdir",
+          "command": "flipperFapStudio.files.upload",
           "when": "view == flipperDeviceFiles",
           "group": "navigation@2"
         },
@@ -302,6 +314,16 @@
           "command": "flipperFapStudio.files.refresh",
           "when": "view == flipperDeviceFiles",
           "group": "navigation@3"
+        },
+        {
+          "command": "flipperFapStudio.files.uploadFolder",
+          "when": "view == flipperDeviceFiles",
+          "group": "1_ops@1"
+        },
+        {
+          "command": "flipperFapStudio.files.mkdir",
+          "when": "view == flipperDeviceFiles",
+          "group": "1_ops@2"
         }
       ],
       "view/item/context": [
@@ -324,6 +346,11 @@
           "command": "flipperFapStudio.files.upload",
           "when": "view == flipperDeviceFiles && viewItem == flipperDir",
           "group": "1_ops@2"
+        },
+        {
+          "command": "flipperFapStudio.files.uploadFolder",
+          "when": "view == flipperDeviceFiles && viewItem == flipperDir",
+          "group": "1_ops@3"
         },
         {
           "command": "flipperFapStudio.files.download",

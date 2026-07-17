@@ -33,9 +33,13 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    const fsProvider = new FlipperFsProvider();
-    vscode.window.registerTreeDataProvider('flipperDeviceFiles', fsProvider);
-    registerFsCommands(context, fsProvider);
+    const fsProvider = new FlipperFsProvider(state);
+    const fsTreeView = vscode.window.createTreeView('flipperDeviceFiles', {
+        treeDataProvider: fsProvider,
+        showCollapseAll: true,
+    });
+    context.subscriptions.push(fsTreeView);
+    registerFsCommands(context, fsProvider, fsTreeView);
 
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ScreenViewProvider.viewId, new ScreenViewProvider(), {

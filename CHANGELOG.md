@@ -13,7 +13,9 @@ All notable changes to Flipper FAP Studio are documented here.
   - Collapsible **LOGS** strip showing connection/RPC events, qFlipper-style
   - Streams only while the panel is visible — collapsing it hands the port back to the serial log
 - **Serial Log** side-panel view — stream live device logs (CLI `log`) with Start/Stop/Clear, ANSI color rendering, and auto-scroll
-- **Flipper Files** side-panel view — browse the SD card and internal flash of the connected device: open files in the editor, upload, download, rename, delete, create folders, copy device paths
+- **Flipper Files (on Device)** side-panel view — browse the SD card and internal flash of the connected device: open files in the editor, upload (multi-select), bulk **Upload Folder** (recursive), download, rename, delete, create folders, copy device paths
+  - The current app's `.fap` and its category folder are highlighted (★ green) on the device, with a **⊙ Reveal Current App** title button that jumps straight to it
+  - File transfers verified against hardware (multi-chunk 50 KB write/read, MD5 integrity match, ~136 KB/s)
 - **Automatic COM-port handover** — the serial connection (log or screen stream) pauses itself while **Build + Launch** pushes the `.fap` to the Flipper, then resumes automatically; the serial port is only ever held by one thing at a time
 - `flipperFapStudio.serialPort` setting to pin a COM port (blank = auto-detect by USB VID/PID)
 - Native Flipper RPC protocol implementation (protobuf over serial) with vendored `.proto` definitions — verified against real hardware (screen streaming, input injection, storage read/write/list/delete)

@@ -282,10 +282,10 @@ function html(compact: boolean): string {
     </div>
     <div id="hint">W/↑ · A/← · S/↓ · D/→ &nbsp;|&nbsp; SPACE/ENTER = OK &nbsp;|&nbsp; BKSP/ESC = BACK<br>CTRL+C = COPY SCREENSHOT &nbsp;|&nbsp; HOLD = LONG PRESS &nbsp;<i>(click the preview first)</i></div>
 
-    <div id="logsWrap">
+    ${compact ? '' : `<div id="logsWrap">
         <div id="logsHeader"><span id="logsArrow">▸</span> LOGS <span id="statusLine">READY.</span></div>
         <div id="logs"></div>
-    </div>
+    </div>`}
 
 <script>
     const vscode = acquireVsCodeApi();
@@ -406,20 +406,25 @@ function html(compact: boolean): string {
         });
     }
 
-    // ── status / logs strip ──
+    // ── status / logs strip (full-size tab only; the sidebar Serial Log panel
+    //    shows these events in compact mode) ──
     const logs = document.getElementById('logs');
+    const logsHeader = document.getElementById('logsHeader');
     const statusLine = document.getElementById('statusLine');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const btnReconnect = document.getElementById('btnReconnect');
 
-    document.getElementById('logsHeader').onclick = () => {
-        logs.classList.toggle('open');
-        document.getElementById('logsArrow').textContent = logs.classList.contains('open') ? '▾' : '▸';
-    };
+    if (logsHeader) {
+        logsHeader.onclick = () => {
+            logs.classList.toggle('open');
+            document.getElementById('logsArrow').textContent = logs.classList.contains('open') ? '▾' : '▸';
+        };
+    }
     btnReconnect.onclick = () => { vscode.postMessage({ type: 'reconnect' }); };
 
     function logLine(level, text) {
+        if (!logs) return;
         const div = document.createElement('div');
         div.className = level === 'error' ? 'le' : level === 'warn' ? 'lw' : 'li';
         div.innerHTML = '<b>[' + new Date().toTimeString().slice(0, 8) + ']</b> ' +

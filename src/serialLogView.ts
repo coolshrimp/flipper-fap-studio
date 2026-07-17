@@ -101,6 +101,11 @@ export class SerialLogViewProvider implements vscode.WebviewViewProvider {
     .a90{color:#8b949e}.a91{color:#ff7b72}.a92{color:#56d364}.a93{color:#e3b341}
     .a94{color:#79c0ff}.a95{color:#d2a8ff}.a96{color:#56d4dd}.a97{color:#f0f6fc}
     .b1{font-weight:bold}
+    .rpc { display: block; }
+    .rpc b { color: #ff8c1a; font-weight: normal; }
+    .rpc.info  { color: #bdb4a8; }
+    .rpc.warn  { color: #d29922; }
+    .rpc.error { color: #f14c4c; }
     #empty { opacity: .55; padding: 12px 10px; font-size: 12px; }
 </style>
 </head>
@@ -166,6 +171,17 @@ export class SerialLogViewProvider implements vscode.WebviewViewProvider {
         if (autoScroll) log.scrollTop = log.scrollHeight;
     }
 
+    // qFlipper-style connection/RPC event lines, interleaved with the device log
+    function appendRpc(level, text) {
+        if (empty.parentNode) empty.remove();
+        const div = document.createElement('div');
+        div.className = 'rpc ' + level;
+        div.innerHTML = '<b>[RPC]</b> ' + esc(text);
+        log.appendChild(div);
+        while (log.childNodes.length > 4000) log.removeChild(log.firstChild);
+        if (autoScroll) log.scrollTop = log.scrollHeight;
+    }
+
     function setState(s) {
         const logging = s.mode === 'logging';
         const connected = s.mode !== 'disconnected';
@@ -205,7 +221,7 @@ export class SerialLogViewProvider implements vscode.WebviewViewProvider {
         if (m.type === 'log') append(m.text);
         else if (m.type === 'restore') { if (m.text) { log.innerHTML=''; append(m.text); } }
         else if (m.type === 'state') setState(m.state);
-        else if (m.type === 'status' && m.level === 'error') append('\\n[!] ' + m.text + '\\n');
+        else if (m.type === 'status') appendRpc(m.level, m.text);
     });
 
     vscode.postMessage({ type: 'ready' });
