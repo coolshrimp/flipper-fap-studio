@@ -4,6 +4,24 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.0] — 2026-07-17
+
+### Added
+- **Live Screen Preview** (qFlipper-style) — mirror the Flipper's 128×64 display in real time over USB:
+  - Control the device with the on-screen D-pad/OK/Back buttons or the keyboard when the panel is focused (W/A/S/D or arrows, Space/Enter = OK, Backspace/Esc = Back; hold a key for long-press/repeat)
+  - **Save Screenshot** exports a crisp 4× PNG; **Ctrl+C** copies the screenshot to the clipboard
+  - Collapsible **LOGS** strip showing connection/RPC events, qFlipper-style
+- **Serial Log** side-panel view — stream live device logs (CLI `log`) with Start/Stop/Clear, ANSI color rendering, and auto-scroll
+- **Flipper Files** side-panel view — browse the SD card and internal flash of the connected device: open files in the editor, upload, download, rename, delete, create folders, copy device paths
+- **Automatic COM-port handover** — the serial connection (log or screen stream) pauses itself while **Build + Launch** pushes the `.fap` to the Flipper, then resumes automatically; the serial port is only ever held by one thing at a time
+- `flipperFapStudio.serialPort` setting to pin a COM port (blank = auto-detect by USB VID/PID)
+- Native Flipper RPC protocol implementation (protobuf over serial) with vendored `.proto` definitions — verified against real hardware (screen streaming, input injection, storage read/write/list/delete)
+
+### Fixed
+- Production dependencies are now actually packaged into the `.vsix` (previously `node_modules` was excluded wholesale); dropped the unused `archiver` dependency
+
+---
+
 ## [0.7.2] — 2026-07-15
 
 ### Changed

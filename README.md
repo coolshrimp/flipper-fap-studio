@@ -4,7 +4,8 @@
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/coolshrimp.flipper-fap-studio)](https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio)
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
-No command line required — just buttons, status, and output logs.
+No command line required — just buttons, status, and output logs.  
+Now with a **live screen preview** (control your Flipper from VS Code, qFlipper-style), a **serial log** panel, and a **device file browser** — all over the same USB cable you build with.
 
 ## Why I built this
 
@@ -72,6 +73,37 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 ---
 
+## Device Tools (USB)
+
+Everything below talks to the Flipper over its USB serial port directly — close qFlipper / lab.flipper.net first, since only one program can hold the port at a time.
+
+### Live Screen Preview
+
+Click **Live Screen Preview** in the sidebar (or run *Flipper FAP Studio: Live Screen Preview*) to mirror the device display in real time and control it remotely:
+
+- **D-pad / OK / Back** buttons, exactly like qFlipper
+- **Keyboard control** while the panel is focused — `W/A/S/D` or arrow keys, `Space`/`Enter` = OK, `Backspace`/`Esc` = Back; **hold** any key for a long-press (with repeat)
+- **▣ Save Screenshot** exports a crisp 4× PNG; **Ctrl+C** copies it straight to the clipboard
+- Collapsible **LOGS** strip showing connection and RPC events
+
+### Serial Log
+
+The **Serial Log** view streams the device's live debug log (`log` on the Flipper CLI) with ANSI colors and auto-scroll. Click **▶ Start** / **■ Stop** any time.
+
+**Builds and serial logging share the port automatically:** when you hit **Build + Launch**, the log (or screen stream) pauses just long enough for uFBT to push the `.fap` to the device, then reconnects and resumes on its own — no manual disconnecting.
+
+### Flipper Files
+
+The **Flipper Files** view browses the connected device's **SD Card** (`/ext`) and **Internal Flash** (`/int`):
+
+- Click a file to download and open a copy in the editor
+- Upload files into any folder, create folders, rename, delete
+- Download any file to disk, or copy its device path
+
+File operations, the screen preview, and the serial log all coordinate over one connection — file operations briefly borrow the RPC session and the device log resumes when they're done.
+
+---
+
 ## Firmware Targets
 
 | Target | Default SDK path |
@@ -92,6 +124,7 @@ Paths can be changed in VS Code Settings (`Ctrl+,`) under **Flipper FAP Studio**
 |---|---|---|
 | `flipperFapStudio.defaultAppFolder` | `""` | Remembered app folder path |
 | `flipperFapStudio.defaultTarget` | `"oem"` | Active build target |
+| `flipperFapStudio.serialPort` | `""` | COM port of the Flipper (blank = auto-detect by USB VID/PID) |
 | `flipperFapStudio.askOnBuildOutput` | `false` | Prompt for a destination folder after each successful build |
 | `flipperFapStudio.buildOutputDir` | `""` | Auto-copy the built `.fap` here after each build (ignored when ask is on) |
 | `flipperFapStudio.defaultCreateAppDir` | `""` | Default parent folder offered when creating a starter app |
@@ -132,9 +165,10 @@ npx vsce package --allow-missing-repository
 
 ## Planned Features
 
+- [x] ~~Detect connected Flipper~~ — done in 0.8.0 (auto-detect + live screen, serial log, file browser)
 - [ ] Package Release ZIP (excludes secrets, confirms before packaging)
-- [ ] Detect connected Flipper (`ufbt cli`)
 - [ ] Multi-target batch build (OEM + all custom targets at once)
+- [ ] Install built `.fap` directly into `/ext/apps` from the file browser
 
 ---
 
