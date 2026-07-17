@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { StateManager } from './stateManager';
 
 const STATE_KEY = 'uiDesigner.design';
+const PANELS_KEY = 'uiDesigner.panels';
 
 /**
  * Flipper UI Designer — lopaka.app-style visual editor for the 128×64 screen.
@@ -46,10 +47,15 @@ export class DesignerPanel {
             case 'ready': {
                 const saved = this.context.globalState.get<string>(STATE_KEY);
                 if (saved) { void this.panel.webview.postMessage({ type: 'loadDesign', json: saved }); }
+                const panels = this.context.globalState.get<string>(PANELS_KEY);
+                if (panels) { void this.panel.webview.postMessage({ type: 'loadPanels', json: panels }); }
                 break;
             }
             case 'saveState':
                 void this.context.globalState.update(STATE_KEY, msg.json as string);
+                break;
+            case 'savePanels':
+                void this.context.globalState.update(PANELS_KEY, msg.json as string);
                 break;
             case 'copy':
                 await vscode.env.clipboard.writeText(msg.text as string);
@@ -199,7 +205,14 @@ function html(): string {
     .panel h3 {
         margin: 0 0 6px; font-size: 10px; letter-spacing: 1px;
         color: var(--orange-dim); text-transform: uppercase;
+        cursor: grab;
     }
+    .panel h3:hover { color: var(--orange); }
+    .panel.dragging { opacity: .5; }
+    .toolBtn.active { background: var(--orange); color: #100d0a; }
+    #imgBox { display: none; }
+    #imgBox.open { display: block; }
+    #imgPrev { image-rendering: pixelated; }
     #toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
     #toolbar .title { letter-spacing: 1px; font-size: 13px; }
     #screenTabs { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -267,15 +280,18 @@ function html(): string {
         <button class="small" id="btnAddScreen" title="Add a new screen">+ SCREEN</button>
         <span style="flex:1"></span>
         <label style="font-size:10px;color:var(--orange-dim)">ZOOM</label>
-        <select id="zoom"><option>4</option><option selected>5</option><option>6</option><option>7</option></select>
+        <select id="zoom"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>10</option></select>
         <button class="small" id="btnGrid" title="Toggle pixel grid">GRID</button>
+        <button class="small toolBtn active" id="toolSelect" title="Select / move / resize elements">◇ SELECT</button>
+        <button class="small toolBtn" id="toolPencil" title="Pixel-perfect freehand drawing (paints into a pixels layer; right-drag erases)">✎ PENCIL</button>
+        <button class="small toolBtn" id="toolEraser" title="Erase freehand pixels">⌫ ERASE</button>
         <button class="small" id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
         <button class="small" id="btnRedo" title="Redo (Ctrl+Y)">↷</button>
     </div>
 
     <div id="layout">
         <div id="palette">
-            <div class="panel">
+            <div class="panel" id="pal_elements">
                 <h3>Elements</h3>
                 <div class="palBtns">
                     <button data-add="text">TEXT</button>
@@ -290,7 +306,7 @@ function html(): string {
                     <button data-add="button" title="Standard Flipper soft-button (elements_button_left/center/right)">BUTTON</button>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="pal_templates">
                 <h3>Templates — adds a screen</h3>
                 <div class="palBtns">
                     <button data-tpl="dialog">DIALOG</button>
@@ -300,9 +316,19 @@ function html(): string {
                     <button data-tpl="hud">HUD</button>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="pal_icons">
                 <h3>Icons — drag onto screen</h3>
                 <div id="iconGrid"></div>
+                <button class="small" id="btnImg" style="margin-top:6px" title="Import a PNG/JPG/GIF and convert it to 1-bit XBM">+ IMPORT IMAGE…</button>
+                <input type="file" id="imgFile" accept="image/*" style="display:none">
+                <div id="imgBox">
+                    <div class="prow"><label>name</label><input type="text" id="imgName" value="my_image"></div>
+                    <div class="prow"><label>width</label><input type="number" id="imgW" value="32" min="1" max="128"></div>
+                    <div class="prow"><label>thresh</label><input type="range" id="imgThr" min="1" max="254" value="128" style="flex:1"></div>
+                    <div class="prow"><label>invert</label><input type="checkbox" id="imgInv"></div>
+                    <div style="background:#ff8b27;border-radius:4px;padding:4px;margin:4px 0;display:flex;justify-content:center"><canvas id="imgPrev"></canvas></div>
+                    <button class="small" id="btnImgAdd">ADD AS ICON</button>
+                </div>
                 <button class="small" id="btnXbm" style="margin-top:6px">+ PASTE XBM…</button>
                 <div id="xbmBox">
                     <div class="prow"><label>name</label><input type="text" id="xbmName" value="my_icon"></div>
@@ -319,7 +345,7 @@ function html(): string {
         </div>
 
         <div id="rightCol">
-            <div class="panel">
+            <div class="panel" id="r_screen">
                 <h3>Screen</h3>
                 <div class="prow"><label>name</label><input type="text" id="screenName"></div>
                 <div class="rowBtns" style="margin-top:5px">
@@ -329,7 +355,7 @@ function html(): string {
                     <button class="small" id="btnScreenRight" title="Move screen later">▶</button>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="r_layers">
                 <h3>Layers</h3>
                 <div id="layerList"></div>
                 <div class="rowBtns" style="margin-top:5px">
@@ -339,7 +365,7 @@ function html(): string {
                     <button class="small" id="btnElDel" title="Delete (Del)">DEL</button>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="r_props">
                 <h3>Properties</h3>
                 <div id="props"><i style="color:var(--orange-dim);font-size:10px">Nothing selected — click an element on the screen.</i></div>
             </div>
@@ -397,7 +423,7 @@ function html(): string {
         sd_card:     ['00111110','01111110','01011010','01011010','01111110','01011010','01100110','01111110'],
     };
     var icons = {}; // name → {w,h,rows:[bool[]]}
-    function addIconDef(name, rows) {
+    function addIconDef(name, rows, custom) {
         var h = rows.length, w = rows[0].length;
         var grid = [];
         for (var y = 0; y < h; y++) {
@@ -406,6 +432,11 @@ function html(): string {
             grid.push(r);
         }
         icons[name] = { w: w, h: h, rows: grid };
+        if (custom) {
+            // custom icons travel with the design so they survive reloads
+            design.customIcons = design.customIcons || {};
+            design.customIcons[name] = rows;
+        }
     }
     for (var k in BUILTIN_ICONS) addIconDef(k, BUILTIN_ICONS[k]);
 
@@ -462,14 +493,15 @@ function html(): string {
     }
     function inRB(px, py, x, y, w, h, r) {
         if (px < x || py < y || px >= x + w || py >= y + h) return false;
-        var cx = -1, cy = -1;
-        if (px < x + r && py < y + r) { cx = x + r - 1; cy = y + r - 1; }
-        else if (px >= x + w - r && py < y + r) { cx = x + w - r; cy = y + r - 1; }
-        else if (px < x + r && py >= y + h - r) { cx = x + r - 1; cy = y + h - r; }
-        else if (px >= x + w - r && py >= y + h - r) { cx = x + w - r; cy = y + h - r; }
-        if (cx < 0) return true;
+        var x1 = x + r, y1 = y + r, x2 = x + w - 1 - r, y2 = y + h - 1 - r;
+        var cx = null, cy = null;
+        if (px < x1 && py < y1) { cx = x1; cy = y1; }
+        else if (px > x2 && py < y1) { cx = x2; cy = y1; }
+        else if (px < x1 && py > y2) { cx = x1; cy = y2; }
+        else if (px > x2 && py > y2) { cx = x2; cy = y2; }
+        if (cx === null) return true;
         var dx = px - cx, dy = py - cy;
-        return dx * dx + dy * dy <= r * r + 1;
+        return dx * dx + dy * dy <= r * r;
     }
     function drawRBox(x, y, w, h, r, fill) {
         r = Math.max(0, Math.min(r, Math.floor(Math.min(w, h) / 2)));
@@ -540,7 +572,7 @@ function html(): string {
     }
     function drawButtonPx(el) {
         var m = buttonMetrics(el);
-        drawRBox(m.x, m.y, m.w, m.h, 2, true);
+        drawRBox(m.x, m.y, m.w, m.h, 3, true);
         drawTextPx(m.x + 5, 61, btnDisplay(el), 'FontSecondary', 0);
     }
     function textWidth(text, font) {
@@ -567,6 +599,12 @@ function html(): string {
         else if (el.type === 'dot') setPx(el.x, el.y);
         else if (el.type === 'icon') drawIconPx(el.x, el.y, el.icon);
         else if (el.type === 'button') drawButtonPx(el);
+        else if (el.type === 'pixels') {
+            for (var j = 0; j < el.h; j++) {
+                var row = el.rows[j];
+                for (var i = 0; i < el.w; i++) if (row.charAt(i) === '1') setPx(el.x + i, el.y + j);
+            }
+        }
     }
 
     function elBounds(el) {
@@ -576,7 +614,44 @@ function html(): string {
         if (el.type === 'dot') { return { x: el.x - 1, y: el.y - 1, w: 3, h: 3 }; }
         if (el.type === 'icon') { var ic = icons[el.icon] || { w: 8, h: 8 }; return { x: el.x, y: el.y, w: ic.w, h: ic.h }; }
         if (el.type === 'button') { return buttonMetrics(el); }
+        if (el.type === 'pixels') {
+            var c = pixelsCrop(el);
+            if (!c) return { x: el.x, y: el.y, w: 4, h: 4 };
+            return { x: el.x + c.minx, y: el.y + c.miny, w: c.w, h: c.h };
+        }
         return { x: el.x, y: el.y, w: el.w, h: el.h };
+    }
+
+    function pixelsCrop(el) {
+        var minx = 999, miny = 999, maxx = -1, maxy = -1;
+        for (var j = 0; j < el.h; j++) {
+            var row = el.rows[j];
+            for (var i = 0; i < el.w; i++) {
+                if (row.charAt(i) === '1') {
+                    if (i < minx) minx = i;
+                    if (i > maxx) maxx = i;
+                    if (j < miny) miny = j;
+                    if (j > maxy) maxy = j;
+                }
+            }
+        }
+        if (maxx < 0) return null;
+        return { minx: minx, miny: miny, w: maxx - minx + 1, h: maxy - miny + 1 };
+    }
+    function getPixelsLayer(create) {
+        var els = screen().elements;
+        for (var i = 0; i < els.length; i++) if (els[i].type === 'pixels') return els[i];
+        if (!create) return null;
+        var rows = [];
+        for (var j = 0; j < 64; j++) rows.push(new Array(129).join('0'));
+        var el = { id: nextId++, type: 'pixels', x: 0, y: 0, w: 128, h: 64, rows: rows };
+        els.push(el);
+        return el;
+    }
+    function setLayerPx(el, x, y, v) {
+        if (x < 0 || y < 0 || x >= el.w || y >= el.h) return;
+        var r = el.rows[y];
+        el.rows[y] = r.substring(0, x) + (v ? '1' : '0') + r.substring(x + 1);
     }
 
     var canvas = document.getElementById('screen');
@@ -607,7 +682,25 @@ function html(): string {
             ctx.setLineDash([4, 3]);
             ctx.strokeRect(b.x * zoom - 2, b.y * zoom - 2, b.w * zoom + 4, b.h * zoom + 4);
             ctx.setLineDash([]);
+            ctx.fillStyle = '#58a6ff';
+            handlesFor(e).forEach(function(h) {
+                ctx.fillRect(h.x * zoom + zoom / 2 - 4, h.y * zoom + zoom / 2 - 4, 8, 8);
+            });
         }
+    }
+
+    // resize grips: rects → bottom-right, circles → radius, lines → both ends
+    function handlesFor(el) {
+        if (el.type === 'box' || el.type === 'frame' || el.type === 'rbox' || el.type === 'rframe') {
+            return [{ x: el.x + el.w - 1, y: el.y + el.h - 1, kind: 'se' }];
+        }
+        if (el.type === 'circle' || el.type === 'disc') {
+            return [{ x: el.x + el.r, y: el.y, kind: 'rad' }];
+        }
+        if (el.type === 'line') {
+            return [{ x: el.x, y: el.y, kind: 'p1' }, { x: el.x2, y: el.y2, kind: 'p2' }];
+        }
+        return [];
     }
 
     // ── UI rendering ──────────────────────────────────────────────────────────
@@ -636,6 +729,7 @@ function html(): string {
                 if (el.type === 'text') label += ' ' + Q + el.text + Q;
                 if (el.type === 'icon') label += ' ' + el.icon;
                 if (el.type === 'button') label += ' ' + el.pos + ' ' + Q + el.text + Q;
+                if (el.type === 'pixels') label += ' (freehand)';
                 d.textContent = (i + 1) + '. ' + label;
                 d.onclick = function() { sel = i; renderAll(); };
                 list.appendChild(d);
@@ -675,7 +769,7 @@ function html(): string {
             t.addEventListener('change', function() { pushUndo(); el.text = t.value; renderAll(); save(); });
             box.appendChild(prow('text', t));
             var f = document.createElement('select');
-            ['FontPrimary', 'FontSecondary', 'FontBigNumbers'].forEach(function(fn) {
+            ['FontPrimary', 'FontSecondary', 'FontKeyboard', 'FontBigNumbers'].forEach(function(fn) {
                 var o = document.createElement('option');
                 o.value = fn; o.textContent = fn; if (el.font === fn) o.selected = true;
                 f.appendChild(o);
@@ -713,6 +807,13 @@ function html(): string {
             note.style.cssText = 'font-size:9px;color:var(--orange-dim)';
             note.textContent = 'Standard bottom bar button — position is fixed by the firmware.';
             box.appendChild(note);
+        } else if (el.type === 'pixels') {
+            var pnote = document.createElement('div');
+            pnote.style.cssText = 'font-size:9px;color:var(--orange-dim)';
+            pnote.textContent = 'Freehand pixel layer — paint with ✎ PENCIL, erase with ⌫. Drag to move.';
+            box.appendChild(pnote);
+            box.appendChild(prow('x', numInput(el.x, function(v) { el.x = v; })));
+            box.appendChild(prow('y', numInput(el.y, function(v) { el.y = v; })));
         } else if (el.type === 'icon') {
             var lab = document.createElement('div');
             lab.style.cssText = 'font-size:10px;color:var(--orange-dim)';
@@ -842,42 +943,117 @@ function html(): string {
 
     // ── canvas interactions ───────────────────────────────────────────────────
     var drag = null;
+    var tool = 'select';
+    var painting = false;
     function evPx(e) {
         var r = canvas.getBoundingClientRect();
         return {
             x: Math.floor((e.clientX - r.left) / zoom),
             y: Math.floor((e.clientY - r.top) / zoom),
+            sx: e.clientX - r.left,
+            sy: e.clientY - r.top,
         };
     }
+
+    function setTool(t) {
+        tool = t;
+        document.getElementById('toolSelect').classList.toggle('active', t === 'select');
+        document.getElementById('toolPencil').classList.toggle('active', t === 'pencil');
+        document.getElementById('toolEraser').classList.toggle('active', t === 'eraser');
+        canvas.style.cursor = t === 'select' ? 'crosshair' : 'cell';
+    }
+    document.getElementById('toolSelect').onclick = function() { setTool('select'); };
+    document.getElementById('toolPencil').onclick = function() { setTool('pencil'); };
+    document.getElementById('toolEraser').onclick = function() { setTool('eraser'); };
+
+    function paintAt(e) {
+        var p = evPx(e);
+        var layer = getPixelsLayer(true);
+        var erase = tool === 'eraser' || (e.buttons & 2) === 2;
+        setLayerPx(layer, p.x - layer.x, p.y - layer.y, erase ? 0 : 1);
+        renderCanvas();
+    }
+
+    canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     canvas.addEventListener('mousedown', function(e) {
+        if (tool !== 'select') {
+            pushUndo();
+            painting = true;
+            paintAt(e);
+            return;
+        }
         var p = evPx(e);
         var els = screen().elements;
+        // resize handle on the current selection wins over re-selection
+        var cur0 = selEl();
+        if (cur0) {
+            var hs = handlesFor(cur0);
+            for (var hi = 0; hi < hs.length; hi++) {
+                if (Math.abs(p.sx - (hs[hi].x * zoom + zoom / 2)) <= 7 &&
+                    Math.abs(p.sy - (hs[hi].y * zoom + zoom / 2)) <= 7) {
+                    pushUndo();
+                    drag = { mode: hs[hi].kind, moved: true };
+                    return;
+                }
+            }
+        }
         var hit = -1;
         for (var i = els.length - 1; i >= 0; i--) {
-            var b = elBounds(els[i]);
-            if (p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) { hit = i; break; }
+            var el2 = els[i];
+            var b = elBounds(el2);
+            if (p.x < b.x || p.x >= b.x + b.w || p.y < b.y || p.y >= b.y + b.h) continue;
+            // freehand layer only grabs clicks on painted pixels, so it never blocks others
+            if (el2.type === 'pixels') {
+                var lx = p.x - el2.x, ly = p.y - el2.y;
+                if (ly < 0 || ly >= el2.h || el2.rows[ly].charAt(lx) !== '1') continue;
+            }
+            hit = i;
+            break;
         }
         sel = hit;
         if (hit >= 0) {
             var el = els[hit];
             pushUndo();
-            drag = { dx: p.x - el.x, dy: p.y - el.y, lx: el.type === 'line' ? el.x2 - el.x : 0, ly: el.type === 'line' ? el.y2 - el.y : 0, moved: false };
+            drag = {
+                mode: 'move',
+                dx: p.x - el.x, dy: p.y - el.y,
+                lx: el.type === 'line' ? el.x2 - el.x : 0,
+                ly: el.type === 'line' ? el.y2 - el.y : 0,
+                moved: false,
+            };
         }
         renderAll();
     });
     canvas.addEventListener('mousemove', function(e) {
         var p = evPx(e);
         document.getElementById('coords').textContent = p.x + ', ' + p.y;
+        if (painting) { paintAt(e); return; }
         if (!drag) return;
         var el = selEl();
         if (!el) return;
-        el.x = p.x - drag.dx;
-        el.y = p.y - drag.dy;
-        if (el.type === 'line') { el.x2 = el.x + drag.lx; el.y2 = el.y + drag.ly; }
+        if (drag.mode === 'move') {
+            el.x = p.x - drag.dx;
+            el.y = p.y - drag.dy;
+            if (el.type === 'line') { el.x2 = el.x + drag.lx; el.y2 = el.y + drag.ly; }
+        } else if (drag.mode === 'se') {
+            el.w = Math.max(1, p.x - el.x + 1);
+            el.h = Math.max(1, p.y - el.y + 1);
+        } else if (drag.mode === 'rad') {
+            el.r = Math.max(1, Math.abs(p.x - el.x));
+        } else if (drag.mode === 'p1') {
+            el.x = p.x; el.y = p.y;
+        } else if (drag.mode === 'p2') {
+            el.x2 = p.x; el.y2 = p.y;
+        }
         drag.moved = true;
         renderCanvas(); renderProps();
     });
     window.addEventListener('mouseup', function() {
+        if (painting) {
+            painting = false;
+            renderLayers(); renderCode();
+            save();
+        }
         if (drag) {
             if (!drag.moved) undoStack.pop(); // click without move — drop the snapshot
             drag = null;
@@ -1018,11 +1194,141 @@ function html(): string {
             }
             rows.push(row);
         }
-        addIconDef(name, rows);
+        addIconDef(name, rows, true);
         renderIconGrid();
         document.getElementById('xbmBox').classList.remove('open');
         save();
     };
+
+    // ── import image → 1-bit XBM icon ─────────────────────────────────────────
+    var srcImg = null;
+    document.getElementById('btnImg').onclick = function() { document.getElementById('imgFile').click(); };
+    document.getElementById('imgFile').addEventListener('change', function() {
+        var f = this.files && this.files[0];
+        if (!f) return;
+        var rd = new FileReader();
+        rd.onload = function() {
+            var im = new Image();
+            im.onload = function() {
+                srcImg = im;
+                document.getElementById('imgW').value = Math.min(128, im.width);
+                document.getElementById('imgName').value = cIdent(f.name.replace(/\\.[a-zA-Z0-9]+$/, '')) || 'my_image';
+                document.getElementById('imgBox').classList.add('open');
+                imgPreview();
+            };
+            im.src = rd.result;
+        };
+        rd.readAsDataURL(f);
+        this.value = '';
+    });
+    function imgRows() {
+        if (!srcImg) return null;
+        var w = Math.max(1, Math.min(128, parseInt(document.getElementById('imgW').value, 10) || 32));
+        var h = Math.max(1, Math.round(w * srcImg.height / srcImg.width));
+        if (h > 64) { h = 64; w = Math.max(1, Math.round(h * srcImg.width / srcImg.height)); }
+        var thr = parseInt(document.getElementById('imgThr').value, 10);
+        var inv = document.getElementById('imgInv').checked;
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        var g = c.getContext('2d');
+        g.drawImage(srcImg, 0, 0, w, h);
+        var data = g.getImageData(0, 0, w, h).data;
+        var rows = [];
+        for (var y = 0; y < h; y++) {
+            var row = '';
+            for (var x = 0; x < w; x++) {
+                var o = (y * w + x) * 4;
+                var lum = 0.299 * data[o] + 0.587 * data[o + 1] + 0.114 * data[o + 2];
+                var on = data[o + 3] > 127 && (lum < thr) !== inv;
+                row += on ? '1' : '0';
+            }
+            rows.push(row);
+        }
+        return rows;
+    }
+    function imgPreview() {
+        var rows = imgRows();
+        if (!rows) return;
+        var w = rows[0].length, h = rows.length;
+        var pv = document.getElementById('imgPrev');
+        var scale = Math.max(1, Math.floor(128 / w));
+        pv.width = w; pv.height = h;
+        pv.style.width = (w * scale) + 'px';
+        pv.style.height = (h * scale) + 'px';
+        var g = pv.getContext('2d');
+        g.clearRect(0, 0, w, h);
+        g.fillStyle = '#1e1005';
+        for (var y = 0; y < h; y++) for (var x = 0; x < w; x++)
+            if (rows[y].charAt(x) === '1') g.fillRect(x, y, 1, 1);
+    }
+    ['imgW', 'imgThr', 'imgInv'].forEach(function(id) {
+        document.getElementById(id).addEventListener('input', imgPreview);
+        document.getElementById(id).addEventListener('change', imgPreview);
+    });
+    document.getElementById('btnImgAdd').onclick = function() {
+        var rows = imgRows();
+        if (!rows) return;
+        var name = cIdent(document.getElementById('imgName').value) || 'my_image';
+        addIconDef(name, rows, true);
+        renderIconGrid();
+        document.getElementById('imgBox').classList.remove('open');
+        addElement('icon', { icon: name }, 10, 10);
+    };
+
+    // ── draggable tool panels (order persists) ────────────────────────────────
+    var dragPanel = null;
+    document.querySelectorAll('#palette > .panel > h3, #rightCol > .panel > h3').forEach(function(h3) {
+        h3.setAttribute('draggable', 'true');
+        h3.addEventListener('dragstart', function(e) {
+            dragPanel = h3.parentElement;
+            dragPanel.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', 'panel');
+        });
+        h3.addEventListener('dragend', function() {
+            if (dragPanel) { dragPanel.classList.remove('dragging'); savePanelOrder(); }
+            dragPanel = null;
+        });
+    });
+    [document.getElementById('palette'), document.getElementById('rightCol')].forEach(function(cont) {
+        cont.addEventListener('dragover', function(e) {
+            if (!dragPanel) return;
+            e.preventDefault();
+            var target = null;
+            var kids = cont.children;
+            for (var i = 0; i < kids.length; i++) {
+                if (kids[i] === dragPanel) continue;
+                var r = kids[i].getBoundingClientRect();
+                if (e.clientY < r.top + r.height / 2) { target = kids[i]; break; }
+            }
+            if (target) { if (target !== dragPanel) cont.insertBefore(dragPanel, target); }
+            else if (cont.lastElementChild !== dragPanel) cont.appendChild(dragPanel);
+        });
+        cont.addEventListener('drop', function(e) {
+            if (dragPanel) { e.preventDefault(); }
+        });
+    });
+    function panelIds(contId) {
+        return [].map.call(document.getElementById(contId).children, function(p) { return p.id; })
+            .filter(function(id) { return !!id; });
+    }
+    function savePanelOrder() {
+        vscode.postMessage({ type: 'savePanels', json: JSON.stringify({
+            palette: panelIds('palette'),
+            right: panelIds('rightCol'),
+        }) });
+    }
+    function applyPanelOrder(json) {
+        try {
+            var order = JSON.parse(json);
+            [['palette', order.palette], ['rightCol', order.right]].forEach(function(pair) {
+                var cont = document.getElementById(pair[0]);
+                (pair[1] || []).forEach(function(id) {
+                    var p = document.getElementById(id);
+                    if (p) cont.appendChild(p);
+                });
+            });
+        } catch (err) { /* keep default order */ }
+    }
 
     // ── toolbar ───────────────────────────────────────────────────────────────
     document.getElementById('zoom').addEventListener('change', function() {
@@ -1100,8 +1406,42 @@ function html(): string {
             else if (el.type === 'button') {
                 lines.push(indent + 'elements_button_' + el.pos + '(canvas, ' + Q + escC(el.text) + Q + ');');
             }
+            else if (el.type === 'pixels') {
+                var pc = pixelsCrop(el);
+                if (pc) lines.push(indent + 'canvas_draw_xbm(canvas, ' + (el.x + pc.minx) + ', ' + (el.y + pc.miny) + ', ' + pc.w + ', ' + pc.h + ', img_pixels_' + el.id + ');');
+            }
         });
         return lines;
+    }
+    function pixelsArrayDef(el) {
+        var c = pixelsCrop(el);
+        if (!c) return null;
+        var bpr = Math.ceil(c.w / 8);
+        var bytes = [];
+        for (var y = 0; y < c.h; y++) {
+            for (var bx = 0; bx < bpr; bx++) {
+                var b = 0;
+                for (var bit = 0; bit < 8; bit++) {
+                    var x = bx * 8 + bit;
+                    if (x < c.w && el.rows[c.miny + y].charAt(c.minx + x) === '1') b |= (1 << bit);
+                }
+                bytes.push('0x' + (b < 16 ? '0' : '') + b.toString(16).toUpperCase());
+            }
+        }
+        return 'static const uint8_t img_pixels_' + el.id + '[] = {' + bytes.join(', ') + '}; // ' + c.w + 'x' + c.h;
+    }
+    function bitmapDefs(screens) {
+        var defs = [];
+        usedIcons(screens).forEach(function(n) { defs.push(iconArray(n)); });
+        screens.forEach(function(s) {
+            s.elements.forEach(function(el) {
+                if (el.type === 'pixels') {
+                    var d = pixelsArrayDef(el);
+                    if (d) defs.push(d);
+                }
+            });
+        });
+        return defs;
     }
     function usesButtons(screens) {
         return screens.some(function(s) {
@@ -1111,10 +1451,10 @@ function html(): string {
     function snippetForScreen() {
         var s = screen();
         var parts = [];
-        var iconNames = usedIcons([s]);
-        if (iconNames.length) {
-            parts.push('// Icon bitmaps (XBM, row-major LSB-first) — place at file scope:');
-            iconNames.forEach(function(n) { parts.push(iconArray(n)); });
+        var defs = bitmapDefs([s]);
+        if (defs.length) {
+            parts.push('// Bitmaps (XBM, row-major LSB-first) — place at file scope:');
+            defs.forEach(function(d) { parts.push(d); });
             parts.push('');
         }
         if (usesButtons([s])) {
@@ -1135,10 +1475,10 @@ function html(): string {
         if (usesButtons(screens)) { lines.push('#include <gui/elements.h>'); }
         lines.push('');
         lines.push('// Generated by Flipper FAP Studio UI Designer');
-        var iconNames = usedIcons(screens);
-        if (iconNames.length) {
+        var defs = bitmapDefs(screens);
+        if (defs.length) {
             lines.push('');
-            iconNames.forEach(function(n) { lines.push(iconArray(n)); });
+            defs.forEach(function(d) { lines.push(d); });
         }
         lines.push('');
         lines.push('typedef enum {');
@@ -1300,6 +1640,7 @@ function html(): string {
             if (t.indexOf('canvas_set_font') === 0) {
                 if (t.indexOf('FontPrimary') >= 0) font = 'FontPrimary';
                 else if (t.indexOf('FontBigNumbers') >= 0) font = 'FontBigNumbers';
+                else if (t.indexOf('FontKeyboard') >= 0) font = 'FontKeyboard';
                 else font = 'FontSecondary';
                 continue;
             }
@@ -1340,9 +1681,15 @@ function html(): string {
                     design.screens.forEach(function(s) { s.elements.forEach(function(el) { if (el.id > maxId) maxId = el.id; }); });
                     nextId = maxId + 1;
                     document.getElementById('appName').value = design.appName || 'my_ui_app';
+                    if (design.customIcons) {
+                        for (var ck in design.customIcons) addIconDef(ck, design.customIcons[ck]);
+                        renderIconGrid();
+                    }
                     renderAll();
                 }
             } catch (err) { /* keep current design */ }
+        } else if (m.type === 'loadPanels') {
+            applyPanelOrder(m.json);
         }
     });
 

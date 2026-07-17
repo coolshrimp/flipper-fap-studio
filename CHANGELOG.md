@@ -4,6 +4,20 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.10.0] — 2026-07-17
+
+### Added — UI Designer (lopaka feature parity, Flipper-only)
+- **Import Image** — convert any PNG/JPG/GIF to 1-bit XBM with live threshold slider, invert toggle, width control, and preview; imported images become draggable icons saved inside the design
+- **Pixel-perfect drawing** — ✎ PENCIL / ⌫ ERASE tools paint freehand pixels (right-drag also erases) onto a movable per-screen layer, exported as an auto-cropped XBM array
+- **Resize handles** — drag the corner grip on boxes/frames, the radius grip on circles/discs, or either endpoint of a line
+- **Draggable tool panels** — grab any panel by its header to reorder it or move it between the left/right columns; the layout persists
+- **FontKeyboard** added to the text font choices; zoom range extended to 3–10×
+
+### Fixed
+- Soft-button preview now has properly rounded pill corners (rounded-rect corner math corrected for rbox/rframe too)
+
+---
+
 ## [0.9.1] — 2026-07-17
 
 ### Added
