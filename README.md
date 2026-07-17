@@ -5,7 +5,7 @@
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
 No command line required — just buttons, status, and output logs.  
-Now with a **live screen preview** (control your Flipper from VS Code, qFlipper-style), a **serial log** panel, and a **device file browser** — all over the same USB cable you build with.
+Now with a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
 
 ## Why I built this
 
@@ -43,6 +43,7 @@ Source code: [github.com/coolshrimp/flipper-fap-studio](https://github.com/cools
 2. Click **Create starter app** — give it a name, choose a parent folder
 3. Click **Build .fap**
 4. Plug in your Flipper Zero, click **Build + Launch on Flipper**
+5. Expand **Live Screen + Log** in the sidebar to watch the app run, drive it with your keyboard, and stream device logs
 
 ---
 
@@ -120,7 +121,7 @@ File operations, the screen preview, and the serial log all coordinate over one 
 | Unleashed | `C:\Flipper\Unleashed` |
 | Custom | Any folder you point it at |
 
-Paths can be changed in VS Code Settings (`Ctrl+,`) under **Flipper FAP Studio**.
+Paths can be changed in VS Code Settings (`Ctrl+,`) under **Flipper FAP Studio**. Point a target at any folder containing the extracted firmware update package — subfolders are scanned several levels deep, several firmwares can share one parent folder, and each target auto-locks onto its own (verified via the `update.fuf` manifest).
 
 ---
 
@@ -150,7 +151,7 @@ The extension never silently sends code or files anywhere.
 - No auto-run of unknown scripts
 - No token storage
 - No secrets shown in logs
-- Sensitive files (`.env`, `*.pem`, `*.pfx`, `credentials.json`, etc.) are excluded from release ZIPs and flagged with a warning before packaging
+- Online checks are read-only version lookups (PyPI for uFBT, GitHub Releases for firmware tags) — nothing about you or your code is sent
 
 ---
 
