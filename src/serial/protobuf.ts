@@ -13,6 +13,7 @@ export const enum MainContent {
     STOP_SESSION = 19,
     SYSTEM_PING_REQUEST = 5,
     SYSTEM_PING_RESPONSE = 6,
+    SYSTEM_REBOOT_REQUEST = 31,
     STORAGE_INFO_REQUEST = 28,
     STORAGE_INFO_RESPONSE = 29,
     STORAGE_STAT_REQUEST = 24,
@@ -174,6 +175,11 @@ export const encode = {
 
     stopSession: (id: number) =>
         mainFrame(id, false, MainContent.STOP_SESSION, Buffer.alloc(0)),
+
+    /** RebootMode: 0 = OS (normal reboot), 1 = DFU, 2 = UPDATE */
+    systemReboot: (id: number, mode: number) =>
+        mainFrame(id, false, MainContent.SYSTEM_REBOOT_REQUEST,
+            new Writer().uintAlways(1, mode).finish()),
 
     guiStartScreenStream: (id: number) =>
         mainFrame(id, false, MainContent.GUI_START_SCREEN_STREAM_REQUEST, Buffer.alloc(0)),

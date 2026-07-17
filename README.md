@@ -77,20 +77,18 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 Everything below talks to the Flipper over its USB serial port directly — close qFlipper / lab.flipper.net first, since only one program can hold the port at a time.
 
-### Live Screen
+### Live Screen + Log
 
-Expand the **Live Screen** panel in the sidebar (or click **Live Screen Preview**) to mirror the device display in real time and control it remotely. Streaming starts when the panel is visible and stops when it's collapsed, so it never hogs the port. Use **⧉ Pop Out** for a full-size editor tab.
+One panel, qFlipper-style: the live display mirror with controls on top, and the combined log right below it. Streaming starts when the panel is visible and stops when it's collapsed, so it never hogs the port. Use **⧉ Pop Out** for a full-size editor tab.
 
 - **D-pad / OK / Back** buttons, exactly like qFlipper
 - **Keyboard control** while the preview is focused — `W/A/S/D` or arrow keys, `Space`/`Enter` = OK, `Backspace`/`Esc` = Back; **hold** any key for a long-press (with repeat)
 - **▣ Save Screenshot** exports a crisp 4× PNG; **Ctrl+C** copies it straight to the clipboard
-- Collapsible **LOGS** strip showing connection and RPC events
+- **⟳ Reset** reboots the Flipper over RPC (click twice to confirm) — same effect as the LEFT+BACK combo, handy when an app freezes; the panel reconnects automatically once the device is back
+- The **LOGS** box shows connection/RPC events (`[RPC] Screen streaming started`, …) and the device's debug log in one place — hit **▶ LOG** to stream the Flipper CLI log (ANSI colors, auto-scroll); the screen pauses while the log runs and resumes when you hit **■**
+- If the COM port is held by another program, the panel says so — **COM BLOCKED** — and names the likely culprit (qFlipper, PuTTY, …) so you know what to close
 
-### Serial Log
-
-The **Serial Log** view streams the device's live debug log (`log` on the Flipper CLI) with ANSI colors and auto-scroll. Click **▶ Start** / **■ Stop** any time. Connection and RPC events (`[RPC] Screen streaming started`, …) appear inline, qFlipper-style.
-
-**Builds and serial logging share the port automatically:** when you hit **Build + Launch**, the log (or screen stream) pauses just long enough for uFBT to push the `.fap` to the device, then reconnects and resumes on its own — no manual disconnecting.
+**Builds and the serial connection share the port automatically:** when you hit **Build + Launch**, the stream/log pauses just long enough for uFBT to push the `.fap` to the device, then reconnects and resumes on its own — no manual disconnecting.
 
 ### Flipper Files (on Device)
 

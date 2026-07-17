@@ -4,9 +4,8 @@ import { registerCommands } from './commands';
 import { StateManager } from './stateManager';
 import { buildState } from './buildState';
 import { FirmwareViewProvider } from './firmwareView';
-import { SerialLogViewProvider } from './serialLogView';
 import { FlipperFsProvider, registerFsCommands } from './flipperFsView';
-import { ScreenPanel, ScreenViewProvider } from './screenPanel';
+import { ScreenPanel, ScreenViewProvider, initScreenLogBuffer } from './screenPanel';
 import { flipperSerial } from './serial/flipperSerial';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -23,15 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(FirmwareViewProvider.viewId, firmwareView)
     );
 
-    // ── Device features (serial log, screen preview, file browser) ────────────
+    // ── Device features (screen preview w/ log, file browser) ─────────────────
     context.subscriptions.push(flipperSerial);
-
-    const serialLogView = new SerialLogViewProvider(context);
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(SerialLogViewProvider.viewId, serialLogView, {
-            webviewOptions: { retainContextWhenHidden: true },
-        })
-    );
+    initScreenLogBuffer(context);
 
     const fsProvider = new FlipperFsProvider(state);
     const fsTreeView = vscode.window.createTreeView('flipperDeviceFiles', {

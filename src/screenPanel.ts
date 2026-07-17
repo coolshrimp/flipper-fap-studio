@@ -12,10 +12,31 @@ const TYPE_MAP: Record<string, InputType> = {
     short: InputType.SHORT, long: InputType.LONG, repeat: InputType.REPEAT,
 };
 
+// ── shared log buffer so panels restore their content when reopened ──────────
+
+interface LogEntry { kind: 'serial' | 'rpc'; level?: string; text: string; ts: number }
+
+const logBuffer: LogEntry[] = [];
+let bufferInitialized = false;
+
+function pushLog(entry: LogEntry) {
+    logBuffer.push(entry);
+    while (logBuffer.length > 1500) { logBuffer.shift(); }
+}
+
+/** Call once on activation — records serial + RPC events for panel restore. */
+export function initScreenLogBuffer(context: vscode.ExtensionContext) {
+    if (bufferInitialized) { return; }
+    bufferInitialized = true;
+    context.subscriptions.push(
+        flipperSerial.onLogData(text => pushLog({ kind: 'serial', text, ts: Date.now() })),
+        flipperSerial.onStatus(s => pushLog({ kind: 'rpc', level: s.level, text: s.text, ts: Date.now() })),
+    );
+}
+
 /**
  * Wire a webview (sidebar view or editor tab) to the shared serial manager:
- * forward frames/status/state in, handle input/screenshot/reconnect out.
- * The returned disposables must be disposed together with the webview.
+ * frames/status/state/device-log in, input/screenshot/log-control/reboot out.
  */
 function attachScreen(webview: vscode.Webview, consumerId: string): vscode.Disposable[] {
     const post = (msg: unknown) => void webview.postMessage(msg);
@@ -24,7 +45,8 @@ function attachScreen(webview: vscode.Webview, consumerId: string): vscode.Dispo
         flipperSerial.onScreenFrame(f => post({
             type: 'frame', data: f.data.toString('base64'), orientation: f.orientation,
         })),
-        flipperSerial.onStatus(s => post({ type: 'status', level: s.level, text: s.text })),
+        flipperSerial.onStatus(s => post({ type: 'status', level: s.level, text: s.text, ts: Date.now() })),
+        flipperSerial.onLogData(text => post({ type: 'serial', text })),
         flipperSerial.onDidChangeState(state => post({ type: 'state', state })),
     ];
 
@@ -32,13 +54,16 @@ function attachScreen(webview: vscode.Webview, consumerId: string): vscode.Dispo
         try {
             await flipperSerial.setStreamConsumer(consumerId, true);
         } catch (err) {
-            post({ type: 'status', level: 'error', text: (err as Error).message });
+            post({ type: 'status', level: 'error', text: (err as Error).message, ts: Date.now() });
         }
     };
 
     subs.push(webview.onDidReceiveMessage(async (msg: { type: string; [k: string]: unknown }) => {
+        const reportError = (err: unknown) =>
+            post({ type: 'status', level: 'error', text: (err as Error).message, ts: Date.now() });
         switch (msg.type) {
             case 'ready':
+                post({ type: 'restoreLog', entries: logBuffer });
                 post({ type: 'state', state: flipperSerial.getState() });
                 void connect();
                 break;
@@ -49,10 +74,13 @@ function attachScreen(webview: vscode.Webview, consumerId: string): vscode.Dispo
                 const key = KEY_MAP[msg.key as string];
                 const type = TYPE_MAP[msg.event as string];
                 if (key === undefined || type === undefined) { return; }
-                flipperSerial.sendInput(key, type).catch(err =>
-                    post({ type: 'status', level: 'error', text: `Input failed: ${(err as Error).message}` }));
+                flipperSerial.sendInput(key, type).catch(reportError);
                 break;
             }
+            case 'startLog': flipperSerial.startLog().catch(reportError); break;
+            case 'stopLog':  flipperSerial.stopLog().catch(reportError); break;
+            case 'clearLog': logBuffer.length = 0; break;
+            case 'reboot':   flipperSerial.rebootDevice().catch(reportError); break;
             case 'openTab':
                 void vscode.commands.executeCommand('flipperFapStudio.screen.openTab');
                 break;
@@ -81,9 +109,8 @@ async function saveScreenshot(dataUrl: string) {
 }
 
 /**
- * "Live Screen" sidebar view — the default surface for the screen preview.
- * Streams only while the view is visible, so collapsing it (or switching to
- * another activity-bar icon) hands the port back to the device log.
+ * "Live Screen" sidebar view — screen mirror, controls, and the combined
+ * device/RPC log in one panel. Streams only while the view is visible.
  */
 export class ScreenViewProvider implements vscode.WebviewViewProvider {
     static readonly viewId = 'flipperScreen';
@@ -164,20 +191,25 @@ function html(compact: boolean): string {
         min-height: ${compact ? 'auto' : '100vh'};
     }
     #topbar {
-        width: 100%; max-width: 760px;
+        width: 100%; max-width: 980px;
         display: flex; align-items: center; justify-content: space-between;
         font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     #statusDot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #666; margin-right: 6px; }
     #statusDot.on { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
     #statusDot.warn { background: #d29922; box-shadow: 0 0 6px #d29922; }
+    #statusDot.err { background: #f14c4c; box-shadow: 0 0 6px #f14c4c; }
     #main {
         width: 100%;
         display: flex; gap: ${compact ? '14px' : '26px'};
         align-items: center; justify-content: center; flex-wrap: wrap;
     }
-    #bezel {
+    #screenCol {
         flex: 0 1 538px; min-width: 220px;
+        display: flex; flex-direction: column; align-items: center; gap: ${compact ? '8px' : '12px'};
+    }
+    #bezel {
+        width: 100%;
         background: var(--screen-bg);
         border: 3px solid var(--orange-dim);
         border-radius: 14px;
@@ -190,6 +222,19 @@ function html(compact: boolean): string {
         image-rendering: pixelated;
         outline: none;
     }
+    /* ── action buttons (above the controls) ── */
+    #actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .btn {
+        background: none; cursor: pointer;
+        border: 2px solid var(--orange); border-radius: 6px;
+        color: var(--orange); padding: ${compact ? '5px 10px' : '7px 14px'};
+        font-family: inherit; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
+    }
+    .btn:hover { background: rgba(255,140,26,.15); }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn.danger { border-color: #f14c4c; color: #f14c4c; }
+    .btn.danger:hover { background: rgba(241,76,76,.15); }
+    .btn.danger.confirm { background: #f14c4c; color: #100d0a; }
     /* ── controls ── */
     #controls { display: flex; flex-direction: column; align-items: center; gap: ${compact ? '10px' : '16px'}; }
     #dpad {
@@ -222,37 +267,48 @@ function html(compact: boolean): string {
     }
     #btnBack:hover { background: rgba(255,140,26,.12); }
     #btnBack:active, #btnBack.active { background: rgba(255,140,26,.3); }
-    /* ── bottom bar ── */
-    #actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-    .btn {
-        background: none; cursor: pointer;
-        border: 2px solid var(--orange); border-radius: 6px;
-        color: var(--orange); padding: ${compact ? '5px 10px' : '7px 16px'};
-        font-family: inherit; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
-    }
-    .btn:hover { background: rgba(255,140,26,.15); }
-    .btn:disabled { opacity: .4; cursor: default; }
     #hint {
         font-size: ${compact ? '9px' : '10.5px'}; letter-spacing: .5px; color: var(--orange-dim);
         text-align: center; line-height: 1.6;
     }
-    /* ── logs strip ── */
-    #logsWrap { width: 100%; max-width: 760px; }
+    /* ── combined log (device serial + RPC events) ── */
+    #logsWrap { width: 100%; max-width: 980px; }
     #logsHeader {
         display: flex; align-items: center; gap: 8px;
         border: 2px solid var(--orange-dim); border-radius: 6px;
-        padding: 4px 8px; cursor: pointer; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
+        padding: 3px 8px; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
-    #logsHeader:hover { background: rgba(255,140,26,.08); }
-    #statusLine { flex: 1; opacity: .9; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    #logsToggle { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    #logsToggle:hover { color: #ffd9ad; }
+    #statusLine { flex: 1; opacity: .9; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+    .logbtn {
+        background: none; cursor: pointer;
+        border: 1px solid var(--orange-dim); border-radius: 4px;
+        color: var(--orange); padding: 2px 7px;
+        font-family: inherit; font-size: ${compact ? '9px' : '10px'}; letter-spacing: 1px;
+    }
+    .logbtn:hover { background: rgba(255,140,26,.15); }
+    .logbtn:disabled { opacity: .35; cursor: default; }
     #logs {
-        display: none; margin-top: 6px; max-height: 140px; overflow-y: auto;
+        display: none; margin-top: 6px;
+        height: ${compact ? '220px' : '260px'}; overflow-y: auto;
         background: #000; border: 1px solid var(--orange-dim); border-radius: 6px;
         padding: 6px 8px; font-size: ${compact ? '10px' : '11px'}; line-height: 1.5;
+        white-space: pre-wrap; word-break: break-all;
+        font-family: 'Consolas', monospace;
     }
     #logs.open { display: block; }
-    .li  { color: #e8e6e3; } .li b { color: var(--orange); font-weight: normal; }
-    .lw  { color: #d29922; } .le { color: #f14c4c; }
+    .rpc { display: block; }
+    .rpc b { color: var(--orange); font-weight: normal; }
+    .rpc.info  { color: #bdb4a8; }
+    .rpc.warn  { color: #d29922; }
+    .rpc.error { color: #f14c4c; }
+    .serial { color: #e8e6e3; }
+    .a30{color:#666}.a31{color:#f14c4c}.a32{color:#3fb950}.a33{color:#d29922}
+    .a34{color:#58a6ff}.a35{color:#bc8cff}.a36{color:#39c5cf}.a37{color:#c9d1d9}
+    .a90{color:#8b949e}.a91{color:#ff7b72}.a92{color:#56d364}.a93{color:#e3b341}
+    .a94{color:#79c0ff}.a95{color:#d2a8ff}.a96{color:#56d4dd}.a97{color:#f0f6fc}
+    .b1{font-weight:bold}
 </style>
 </head>
 <body tabindex="0">
@@ -262,7 +318,15 @@ function html(compact: boolean): string {
     </div>
 
     <div id="main">
-        <div id="bezel"><canvas id="screen" width="128" height="64"></canvas></div>
+        <div id="screenCol">
+            <div id="bezel"><canvas id="screen" width="128" height="64"></canvas></div>
+            <div id="actions">
+                <button class="btn" id="btnShot" title="Save a 4× PNG of the current screen">▣ ${compact ? 'SCREENSHOT' : 'SAVE SCREENSHOT'}</button>
+                ${compact ? '<button class="btn" id="btnPop" title="Open the screen preview in a full-size editor tab">⧉ POP OUT</button>' : ''}
+                <button class="btn danger" id="btnReset" title="Reboot the Flipper over RPC (same as the LEFT+BACK combo) — recovers a frozen app">⟳ RESET</button>
+                <button class="btn" id="btnReconnect" style="display:none">↻ RECONNECT</button>
+            </div>
+        </div>
         <div id="controls">
             <div id="dpad">
                 <span></span><button class="pad" data-key="up" title="Up (W / ↑)">▲</button><span></span>
@@ -275,17 +339,18 @@ function html(compact: boolean): string {
         </div>
     </div>
 
-    <div id="actions">
-        <button class="btn" id="btnShot" title="Save a 4× PNG of the current screen">▣ ${compact ? 'SCREENSHOT' : 'SAVE SCREENSHOT'}</button>
-        ${compact ? '<button class="btn" id="btnPop" title="Open the screen preview in a full-size editor tab">⧉ POP OUT</button>' : ''}
-        <button class="btn" id="btnReconnect" style="display:none">↻ RECONNECT</button>
-    </div>
     <div id="hint">W/↑ · A/← · S/↓ · D/→ &nbsp;|&nbsp; SPACE/ENTER = OK &nbsp;|&nbsp; BKSP/ESC = BACK<br>CTRL+C = COPY SCREENSHOT &nbsp;|&nbsp; HOLD = LONG PRESS &nbsp;<i>(click the preview first)</i></div>
 
-    ${compact ? '' : `<div id="logsWrap">
-        <div id="logsHeader"><span id="logsArrow">▸</span> LOGS <span id="statusLine">READY.</span></div>
-        <div id="logs"></div>
-    </div>`}
+    <div id="logsWrap">
+        <div id="logsHeader">
+            <span id="logsToggle"><span id="logsArrow">▾</span> LOGS</span>
+            <span id="statusLine">READY.</span>
+            <button class="logbtn" id="btnLogStart" title="Stream the device debug log (pauses the screen while running)">▶ LOG</button>
+            <button class="logbtn" id="btnLogStop" title="Stop the device log (screen resumes)" disabled>■</button>
+            <button class="logbtn" id="btnLogClear" title="Clear the log window">CLEAR</button>
+        </div>
+        <div id="logs" class="open"></div>
+    </div>
 
 <script>
     const vscode = acquireVsCodeApi();
@@ -309,7 +374,6 @@ function html(compact: boolean): string {
         }
         ctx.putImageData(img, 0, 0);
     }
-    // initial blank screen
     ctx.fillStyle = '#ff8b27'; ctx.fillRect(0, 0, 128, 64);
 
     function b64ToBytes(b64) {
@@ -399,40 +463,152 @@ function html(compact: boolean): string {
         renderPng().toBlob(async blob => {
             try {
                 await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                logLine('info', 'Screenshot copied to clipboard');
+                appendRpc('info', 'Screenshot copied to clipboard', Date.now());
             } catch (err) {
-                logLine('warn', 'Clipboard copy blocked — use SAVE SCREENSHOT instead');
+                appendRpc('warn', 'Clipboard copy blocked — use SAVE SCREENSHOT instead', Date.now());
             }
         });
     }
 
-    // ── status / logs strip (full-size tab only; the sidebar Serial Log panel
-    //    shows these events in compact mode) ──
+    // ── RESET (two-click confirm) ──
+    const btnReset = document.getElementById('btnReset');
+    let resetArmed = null;
+    btnReset.onclick = () => {
+        if (resetArmed) {
+            clearTimeout(resetArmed);
+            resetArmed = null;
+            btnReset.classList.remove('confirm');
+            btnReset.textContent = '⟳ RESET';
+            vscode.postMessage({ type: 'reboot' });
+        } else {
+            btnReset.classList.add('confirm');
+            btnReset.textContent = '⟳ SURE?';
+            resetArmed = setTimeout(() => {
+                resetArmed = null;
+                btnReset.classList.remove('confirm');
+                btnReset.textContent = '⟳ RESET';
+            }, 3000);
+        }
+    };
+
+    // ── combined log: device serial output + [RPC] events ──
     const logs = document.getElementById('logs');
-    const logsHeader = document.getElementById('logsHeader');
     const statusLine = document.getElementById('statusLine');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const btnReconnect = document.getElementById('btnReconnect');
+    const btnLogStart = document.getElementById('btnLogStart');
+    const btnLogStop = document.getElementById('btnLogStop');
+    let autoScroll = true;
+    let pendingSpanClass = null;
+    let portBlocked = false;
 
-    if (logsHeader) {
-        logsHeader.onclick = () => {
-            logs.classList.toggle('open');
-            document.getElementById('logsArrow').textContent = logs.classList.contains('open') ? '▾' : '▸';
-        };
-    }
+    logs.addEventListener('scroll', () => {
+        autoScroll = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 8;
+    });
+
+    const toggleLogs = () => {
+        logs.classList.toggle('open');
+        document.getElementById('logsArrow').textContent = logs.classList.contains('open') ? '▾' : '▸';
+    };
+    document.getElementById('logsToggle').onclick = toggleLogs;
+    statusLine.onclick = toggleLogs;
+
+    btnLogStart.onclick = () => vscode.postMessage({ type: 'startLog' });
+    btnLogStop.onclick  = () => vscode.postMessage({ type: 'stopLog' });
+    document.getElementById('btnLogClear').onclick = () => {
+        logs.innerHTML = '';
+        pendingSpanClass = null;
+        vscode.postMessage({ type: 'clearLog' });
+    };
     btnReconnect.onclick = () => { vscode.postMessage({ type: 'reconnect' }); };
 
-    function logLine(level, text) {
-        if (!logs) return;
+    function esc(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Minimal ANSI SGR → span renderer (Flipper logs are colorized)
+    function ansiToHtml(text) {
+        let html = '';
+        let cls = pendingSpanClass;
+        const parts = text.split(/\\x1b\\[([0-9;]*)m/g);
+        for (let i = 0; i < parts.length; i++) {
+            if (i % 2 === 0) {
+                if (!parts[i]) continue;
+                html += cls ? '<span class="' + cls + '">' + esc(parts[i]) + '</span>' : esc(parts[i]);
+            } else {
+                const codes = parts[i].split(';').filter(Boolean).map(Number);
+                if (codes.length === 0 || codes.includes(0)) { cls = null; }
+                for (const c of codes) {
+                    if ((c >= 30 && c <= 37) || (c >= 90 && c <= 97)) { cls = 'a' + c; }
+                    else if (c === 1) { cls = (cls ? cls + ' ' : '') + 'b1'; }
+                }
+            }
+        }
+        pendingSpanClass = cls;
+        return html;
+    }
+
+    function trimAndScroll() {
+        while (logs.childNodes.length > 4000) logs.removeChild(logs.firstChild);
+        if (autoScroll) logs.scrollTop = logs.scrollHeight;
+    }
+
+    function appendSerial(text) {
+        const span = document.createElement('span');
+        span.className = 'serial';
+        span.innerHTML = ansiToHtml(text);
+        logs.appendChild(span);
+        trimAndScroll();
+    }
+
+    function appendRpc(level, text, ts) {
         const div = document.createElement('div');
-        div.className = level === 'error' ? 'le' : level === 'warn' ? 'lw' : 'li';
-        div.innerHTML = '<b>[' + new Date().toTimeString().slice(0, 8) + ']</b> ' +
-            text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        div.className = 'rpc ' + (level || 'info');
+        const time = new Date(ts || Date.now()).toTimeString().slice(0, 8);
+        div.innerHTML = '<b>[' + time + ']</b> ' + esc(text);
         logs.appendChild(div);
-        while (logs.childNodes.length > 300) logs.removeChild(logs.firstChild);
-        logs.scrollTop = logs.scrollHeight;
+        trimAndScroll();
         statusLine.textContent = text.toUpperCase();
+        if (level === 'error' && /not accessible/i.test(text)) {
+            portBlocked = true;
+            statusDot.className = 'err';
+            statusText.textContent = 'COM BLOCKED';
+            btnReconnect.style.display = '';
+        }
+    }
+
+    function setState(s) {
+        const streaming = s.mode === 'rpc' && s.wantStream && !s.suspended;
+        btnLogStart.disabled = s.wantLog || s.suspended;
+        btnLogStop.disabled = !s.wantLog;
+        if (s.mode !== 'disconnected') portBlocked = false;
+        if (s.suspended) {
+            statusDot.className = 'warn';
+            statusText.textContent = 'PAUSED — BUILD/LAUNCH';
+            btnReconnect.style.display = 'none';
+        } else if (s.mode === 'logging') {
+            statusDot.className = 'on';
+            statusText.textContent = 'LOG — ' + (s.portPath || '') + (s.wantStream ? ' · SCREEN PAUSED' : '');
+            btnReconnect.style.display = 'none';
+        } else if (streaming) {
+            statusDot.className = 'on';
+            statusText.textContent = 'LIVE — ' + (s.portPath || '');
+            btnReconnect.style.display = 'none';
+        } else if (s.mode === 'disconnected') {
+            if (portBlocked) {
+                statusDot.className = 'err';
+                statusText.textContent = 'COM BLOCKED';
+            } else {
+                statusDot.className = '';
+                statusText.textContent = 'DISCONNECTED';
+            }
+            btnReconnect.style.display = '';
+        } else {
+            statusDot.className = 'warn';
+            statusText.textContent = s.mode.toUpperCase();
+            btnReconnect.style.display = 'none';
+        }
     }
 
     window.addEventListener('message', e => {
@@ -440,28 +616,19 @@ function html(compact: boolean): string {
         if (m.type === 'frame') {
             lastFrame = m;
             drawFrame(b64ToBytes(m.data), m.orientation);
+        } else if (m.type === 'serial') {
+            appendSerial(m.text);
         } else if (m.type === 'status') {
-            logLine(m.level, m.text);
-        } else if (m.type === 'state') {
-            const s = m.state;
-            const streaming = s.mode === 'rpc' && s.wantStream && !s.suspended;
-            if (s.suspended) {
-                statusDot.className = 'warn';
-                statusText.textContent = 'PAUSED — BUILD/LAUNCH';
-                btnReconnect.style.display = 'none';
-            } else if (streaming) {
-                statusDot.className = 'on';
-                statusText.textContent = 'LIVE — ' + (s.portPath || '');
-                btnReconnect.style.display = 'none';
-            } else if (s.mode === 'disconnected') {
-                statusDot.className = '';
-                statusText.textContent = 'DISCONNECTED';
-                btnReconnect.style.display = '';
-            } else {
-                statusDot.className = 'warn';
-                statusText.textContent = s.mode.toUpperCase();
-                btnReconnect.style.display = 'none';
+            appendRpc(m.level, m.text, m.ts);
+        } else if (m.type === 'restoreLog') {
+            logs.innerHTML = '';
+            pendingSpanClass = null;
+            for (const en of m.entries) {
+                if (en.kind === 'serial') appendSerial(en.text);
+                else appendRpc(en.level, en.text, en.ts);
             }
+        } else if (m.type === 'state') {
+            setState(m.state);
         }
     });
 

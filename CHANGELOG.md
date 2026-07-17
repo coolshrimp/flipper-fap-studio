@@ -4,6 +4,18 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.3] — 2026-07-17
+
+### Changed
+- **One panel instead of two** — the Serial Log view is merged into **Live Screen + Log**: the qFlipper-style LOGS box (dark, bordered, timestamped `[RPC]` events) now sits under the screen controls and also carries the device debug log (**▶ LOG** / **■** / **CLEAR** buttons in its header, ANSI colors, auto-scroll). Starting the device log pauses the screen stream; stopping it resumes the stream.
+- **Screenshot / Pop Out buttons moved above the D-pad controls**, directly under the screen
+
+### Added
+- **⟳ RESET button** — reboots the Flipper over RPC (same effect as the LEFT+BACK hardware combo) for recovering frozen apps; two-click confirm, and the panel auto-reconnects once the device re-enumerates
+- **COM BLOCKED indicator** — when the port can't be opened, the panel shows COM BLOCKED and names the likely holder (qFlipper, PuTTY, Tera Term, …) so you know what to close
+
+---
+
 ## [0.8.2] — 2026-07-17
 
 ### Fixed

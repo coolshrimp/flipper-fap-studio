@@ -247,6 +247,39 @@ export class FlipperSerial {
         await this.withRpc(() => this.rpcRequest(id => [encode.guiSendInputEvent(id, key, type)]));
     }
 
+    /**
+     * Reboot the Flipper over RPC (same effect as the LEFT+BACK combo) — for
+     * recovering a frozen app. The USB port re-enumerates, so reconnect
+     * attempts run for a while afterwards.
+     */
+    async rebootDevice(): Promise<void> {
+        this.status('warn', 'Rebooting Flipper…');
+        try {
+            await this.withRpc(async () => {
+                // fire-and-forget: the device drops the link before replying
+                this.write(encode.systemReboot(this.allocId(), 0));
+            });
+        } catch (err) {
+            this.status('error', `Reboot failed: ${(err as Error).message}`);
+            return;
+        }
+        this.status('info', 'Reboot sent — waiting for the Flipper to come back…');
+        // the port will vanish and re-enumerate; keep trying to reconnect
+        const hadLog = this.wantLog;
+        for (let attempt = 0; attempt < 10; attempt++) {
+            await delay(2000);
+            if (this.suspendCount > 0) { return; }
+            if (this.mode !== 'disconnected') {
+                this.status('info', 'Flipper is back online.');
+                return;
+            }
+            this.userConnected = true;   // onPortClosed clears it — restore intent
+            this.wantLog = hadLog;
+            await this.reconcile().catch(() => undefined);
+        }
+        this.status('error', 'Flipper did not come back after reboot — check USB and Reconnect manually.');
+    }
+
     dispose() {
         this.forceClose();
     }
@@ -260,8 +293,12 @@ export class FlipperSerial {
         if (!this.userConnected && !this.wantLog && !this.wantStream && this.rpcHold === 0) {
             return 'disconnected';
         }
-        if (this.wantStream || this.rpcHold > 0 || this.holdReleaseTimer !== null) { return 'rpc'; }
+        // transient RPC operations (file transfers, input) always win, then the
+        // user's explicit log choice, then the screen stream — starting the
+        // device log pauses the stream, stopping it resumes the stream
+        if (this.rpcHold > 0 || this.holdReleaseTimer !== null) { return 'rpc'; }
         if (this.wantLog) { return 'logging'; }
+        if (this.wantStream) { return 'rpc'; }
         return 'cli';
     }
 
@@ -337,9 +374,14 @@ export class FlipperSerial {
         this.status('info', `Opening ${path}…`);
         const port = new SerialPort({ path, baudRate: 230400, autoOpen: false });
         await new Promise<void>((resolve, reject) => {
-            port.open(err => err
-                ? reject(new Error(`Could not open ${path}: ${err.message} (close qFlipper or other serial monitors)`))
-                : resolve());
+            port.open(err => {
+                if (!err) { resolve(); return; }
+                const holders = detectPortHolders();
+                const who = holders.length > 0
+                    ? `${holders.join(' / ')} appears to be running and is likely holding the port — close it, then Reconnect.`
+                    : 'another program is likely holding the port (qFlipper, a lab.flipper.net browser tab, a serial monitor…) — close it, then Reconnect.';
+                reject(new Error(`${path} not accessible (${err.message.trim()}). ${who}`));
+            });
         });
         this.port = port;
         this.portPath = path;
@@ -415,6 +457,8 @@ export class FlipperSerial {
     }
 
     private async exitRpc(): Promise<void> {
+        if (this.streaming) { await this.stopStream().catch(() => undefined); }
+        this.streaming = false;
         for (const [, p] of this.pending) {
             clearTimeout(p.timer);
             p.reject(new Error('RPC session closed'));
@@ -635,6 +679,34 @@ export class FlipperSerial {
 
 function delay(ms: number): Promise<void> {
     return new Promise(r => setTimeout(r, ms));
+}
+
+/** Best-effort guess at which running program is hogging the COM port. */
+function detectPortHolders(): string[] {
+    if (process.platform !== 'win32') { return []; }
+    const KNOWN: Record<string, string> = {
+        'qflipper': 'qFlipper',
+        'putty': 'PuTTY',
+        'ttermpro': 'Tera Term',
+        'teraterm': 'Tera Term',
+        'realterm': 'RealTerm',
+        'coolterm': 'CoolTerm',
+        'hterm': 'HTerm',
+    };
+    try {
+        const cp = require('child_process') as typeof import('child_process');
+        const out = cp.execSync('tasklist /FO CSV /NH', { encoding: 'utf8', timeout: 4000, windowsHide: true });
+        const found = new Set<string>();
+        for (const line of out.split('\n')) {
+            const name = (line.split('","')[0] ?? '').replace(/^"/, '').toLowerCase();
+            for (const key of Object.keys(KNOWN)) {
+                if (name.includes(key)) { found.add(KNOWN[key]); }
+            }
+        }
+        return [...found];
+    } catch {
+        return [];
+    }
 }
 
 /** Singleton shared by all views and commands. */
