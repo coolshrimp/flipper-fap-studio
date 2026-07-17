@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as cp from 'child_process';
 import * as https from 'https';
 import { StateManager } from './stateManager';
 import { FW_META } from './treeProviders';
+import {
+    inspectSdkFolder, fetchLatestReleaseTag, repoSlugFromUrl, versionMatchesTag,
+    FLAVOR_LABELS, FwFlavor,
+} from './sdkCheck';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,11 +15,18 @@ interface FwEntry {
     label: string;
     status: string;
     found: boolean;
+    dotCls: 'found' | 'missing' | 'update';
     path: string;
     githubUrl: string;
     webUrl?: string;
     webLabel?: string;
 }
+
+const EXPECTED_FLAVOR: Record<string, FwFlavor> = {
+    momentum: 'momentum',
+    unleashed: 'unleashed',
+    rogueMaster: 'rogueMaster',
+};
 
 interface UfbtVersions {
     installed: string | null;   // null = not installed
@@ -61,26 +71,60 @@ function fetchPypiVersion(): Promise<string | null> {
 
 // ── Entry builder ─────────────────────────────────────────────────────────────
 
-function buildEntries(state: StateManager, ufbt: UfbtVersions): FwEntry[] {
+function buildEntries(
+    state: StateManager,
+    ufbt: UfbtVersions,
+    latestTags: Record<string, string | null>
+): FwEntry[] {
     return Object.entries(FW_META).map(([id, meta]) => {
         if (id === 'oem') {
             let status: string;
+            let dotCls: FwEntry['dotCls'];
             if (ufbt.checking) {
                 status = 'Checking…';
+                dotCls = 'missing';
             } else if (ufbt.installed === null) {
                 status = 'Not installed';
+                dotCls = 'missing';
             } else if (ufbt.latest && ufbt.latest !== ufbt.installed) {
                 status = `v${ufbt.installed} → v${ufbt.latest} available`;
+                dotCls = 'update';
             } else {
                 status = `v${ufbt.installed}${ufbt.latest ? ' (up to date)' : ''}`;
+                dotCls = 'found';
             }
-            const found = ufbt.installed !== null;
-            return { id, status, found, path: '', ...meta };
+            return { id, status, found: ufbt.installed !== null, dotCls, path: '', ...meta };
         }
+
         const p = state.getTargetPath(id);
-        const found = !!p && fs.existsSync(p);
-        const status = !p ? 'Not configured' : found ? 'SDK found' : 'Path not found';
-        return { id, status, found, path: p, ...meta };
+        const info = inspectSdkFolder(p);
+        const latest = latestTags[id];
+
+        let status: string;
+        let dotCls: FwEntry['dotCls'];
+        let found = false;
+
+        if (!p) {
+            status = 'Not configured';
+            dotCls = 'missing';
+        } else if (!info.ok) {
+            // folder may exist but hold no verifiable firmware — say so explicitly
+            status = info.problem ?? 'Not verified';
+            dotCls = 'missing';
+        } else if (EXPECTED_FLAVOR[id] && info.flavor !== EXPECTED_FLAVOR[id]) {
+            status = `Found ${FLAVOR_LABELS[info.flavor ?? 'unknown']} (${info.version}) — not ${meta.label}`;
+            dotCls = 'missing';
+        } else {
+            found = true;
+            if (latest && info.version && !versionMatchesTag(info.version, latest)) {
+                status = `${info.version} → ${latest} available`;
+                dotCls = 'update';
+            } else {
+                status = `${info.version} ✓ verified${latest ? ' · up to date' : ''}`;
+                dotCls = 'found';
+            }
+        }
+        return { id, status, found, dotCls, path: p, ...meta };
     });
 }
 
@@ -90,9 +134,11 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewId = 'flipperFirmwareStatus';
     private _view?: vscode.WebviewView;
     private _ufbt: UfbtVersions = { installed: null, latest: null, checking: true };
+    private _latestTags: Record<string, string | null> = {};
 
     constructor(private readonly state: StateManager) {
         this._checkUfbt();
+        this._checkLatestReleases();
     }
 
     resolveWebviewView(view: vscode.WebviewView) {
@@ -125,6 +171,7 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
                     this._ufbt = { ...this._ufbt, checking: true };
                     this._render();
                     this._checkUfbt();
+                    this._checkLatestReleases(true);
                     break;
 
                 case 'openGitHub':
@@ -175,9 +222,20 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
         this._render();
     }
 
+    /** Fetch each firmware's latest GitHub release tag for version comparison. */
+    private async _checkLatestReleases(force = false) {
+        await Promise.all(Object.entries(FW_META)
+            .filter(([id]) => id !== 'oem')
+            .map(async ([id, meta]) => {
+                const slug = repoSlugFromUrl(meta.githubUrl);
+                this._latestTags[id] = slug ? await fetchLatestReleaseTag(slug, force) : null;
+            }));
+        this._render();
+    }
+
     private _render() {
         if (!this._view) { return; }
-        const entries = buildEntries(this.state, this._ufbt);
+        const entries = buildEntries(this.state, this._ufbt, this._latestTags);
         this._view.webview.html = getHtml(entries, this._ufbt);
     }
 }
@@ -193,13 +251,7 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
     const rows = entries.map(e => {
         const isOem = e.id === 'oem';
 
-        // Dot colour: OEM has three states (missing/update/ok), others two
-        let dotCls = e.found ? 'found' : 'missing';
-        if (isOem && !ufbt.checking) {
-            if (ufbt.installed === null)                               { dotCls = 'missing'; }
-            else if (ufbt.latest && ufbt.latest !== ufbt.installed)   { dotCls = 'update';  }
-            else                                                        { dotCls = 'found';   }
-        }
+        const dotCls = e.dotCls;
         const dot = `<span class="dot ${dotCls}"></span>`;
         const statusCls = dotCls === 'found' ? 'status-ok' : dotCls === 'update' ? 'status-update' : 'status-warn';
 

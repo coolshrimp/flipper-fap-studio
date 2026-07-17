@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { StateManager } from './stateManager';
 import { buildState } from './buildState';
+import { inspectSdkFolder, FLAVOR_LABELS } from './sdkCheck';
 
 const PURPLE  = new vscode.ThemeColor('charts.purple');
 const GREEN   = new vscode.ThemeColor('testing.iconPassed');
@@ -212,7 +213,10 @@ function getFirmwareStatusItem(fwId: string, state: StateManager): FirmwareStatu
     }
 
     const sdkPath = state.getTargetPath(fwId);
-    const exists = sdkPath ? fs.existsSync(sdkPath) : false;
+    const info = inspectSdkFolder(sdkPath);
+    const expected: Record<string, string> = { momentum: 'momentum', unleashed: 'unleashed', rogueMaster: 'rogueMaster' };
+    const flavorOk = info.ok && (!expected[fwId] || info.flavor === expected[fwId]);
+    const exists = info.ok && flavorOk;
 
     let status: string;
     let bodyLines: string[];
@@ -225,22 +229,34 @@ function getFirmwareStatusItem(fwId: string, state: StateManager): FirmwareStatu
             '⚠ No SDK path configured.',
             'Click the folder icon or open **Settings** to set the path.',
         ];
-    } else if (!exists) {
-        status = 'Path not found';
+    } else if (!info.ok) {
+        status = info.problem ?? 'Not verified';
         bodyLines = [
             `**${meta.label}**`,
             '',
-            `⚠ Configured path does not exist on disk:`,
+            `⚠ ${info.problem ?? 'Could not verify the firmware in this folder.'}`,
             `\`${sdkPath}\``,
             '',
-            'Check the path in **Settings** or clone the firmware repo there.',
+            'Point the path at an extracted firmware update package (the folder containing `update.fuf`, or its parent).',
+        ];
+    } else if (!flavorOk) {
+        status = `Found ${FLAVOR_LABELS[info.flavor ?? 'unknown']} (${info.version})`;
+        bodyLines = [
+            `**${meta.label}**`,
+            '',
+            `⚠ This folder contains **${FLAVOR_LABELS[info.flavor ?? 'unknown']}** firmware (\`${info.version}\`), not ${meta.label}.`,
+            `\`${sdkPath}\``,
+            '',
+            'Download the correct firmware from the GitHub releases and point the path at it.',
         ];
     } else {
-        status = 'SDK found';
+        status = `${info.version} ✓`;
         bodyLines = [
-            `**${meta.label}** — SDK found`,
+            `**${meta.label}** — verified \`${info.version}\``,
             '',
-            `\`${sdkPath}\``,
+            `\`${info.dir ?? sdkPath}\``,
+            '',
+            '_Version read from the `update.fuf` manifest inside the folder._',
         ];
     }
 

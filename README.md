@@ -48,9 +48,16 @@ Source code: [github.com/coolshrimp/flipper-fap-studio](https://github.com/cools
 
 ## Panel Layout
 
-<img src="screenshots/Screenshot1.png" width="320" alt="Flipper FAP Studio sidebar — build buttons, Recent Projects, and live Firmware SDKs status">
+<img src="screenshots/ScreenshotDashboard.png" width="900" alt="Flipper FAP Studio — full dashboard: sidebar with live screen and device files, pop-out screen mirror with logs, and build output">
 
-The sidebar shows the current app and target at the top, one-click build actions, your Recent Projects, and live Firmware SDK status (installed version, up-to-date check, path found/missing) with inline install/update buttons.
+<p>
+<img src="screenshots/ScreenshotSidebar.png" width="340" alt="Sidebar — build actions, Live Screen + Log panel with D-pad control, and the on-device file browser">
+<img src="screenshots/ScreenshotLivePopout.png" width="550" alt="Live Screen pop-out — full-size display mirror with D-pad, keyboard control, screenshots, reset, and the combined RPC/device log">
+</p>
+
+The sidebar shows the current app and target at the top, one-click build actions, the **Live Screen + Log** panel (real-time display mirror with controls and the device log), the **Flipper Files (on Device)** browser, your Recent Projects, and live Firmware SDK status with inline install/update buttons.
+
+> Tip: VS Code remembers the height you drag each sidebar section to (per workspace), and you can drag any panel out to the Secondary Side Bar (`Ctrl+Alt+B`) for more room.
 
 ---
 
@@ -69,7 +76,7 @@ The sidebar shows the current app and target at the top, one-click build actions
 
 The **Recent Projects** view lists every valid Flipper app you've created, opened, or built, newest first. Click one to switch the extension to that app folder instantly; inline buttons open the project in a new VS Code window or remove it from the list. Only folders containing an `application.fam` are tracked.
 
-The **Firmware SDKs** view below the buttons shows each SDK's status live — whether uFBT is installed and up to date (checked against PyPI), and whether each custom-firmware SDK path exists on disk — with inline buttons to install/update uFBT, set paths, and open release pages. Build failures are matched against common problems (Flipper not detected, API mismatch, missing includes, …) and shown as actionable hints.
+The **Firmware SDKs** view below the buttons shows each SDK's status live — whether uFBT is installed and up to date (checked against PyPI), and each custom-firmware folder **verified for real**: the extension reads the `update.fuf` manifest inside the folder, shows the exact firmware version found (e.g. `mntm-012 ✓ verified`), flags folders that hold the *wrong* firmware ("Found Momentum — not RogueMaster") or none at all, and compares your version against the latest GitHub release (`mntm-012 → mntm-013 available`). Inline buttons install/update uFBT, set paths, and open release pages. Build failures are matched against common problems (Flipper not detected, API mismatch, missing includes, …) and shown as actionable hints.
 
 ---
 

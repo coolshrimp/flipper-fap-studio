@@ -235,8 +235,8 @@ function html(compact: boolean): string {
     .btn.danger { border-color: #f14c4c; color: #f14c4c; }
     .btn.danger:hover { background: rgba(241,76,76,.15); }
     .btn.danger.confirm { background: #f14c4c; color: #100d0a; }
-    /* ── controls ── */
-    #controls { display: flex; flex-direction: column; align-items: center; gap: ${compact ? '10px' : '16px'}; }
+    /* ── controls: back button sits right of the D-pad, bottoms aligned ── */
+    #controls { display: flex; flex-direction: row; align-items: flex-end; gap: ${compact ? '10px' : '16px'}; }
     #dpad {
         position: relative;
         width: ${compact ? '128px' : '168px'}; height: ${compact ? '128px' : '168px'};
@@ -260,7 +260,6 @@ function html(compact: boolean): string {
     #btnOk:hover { background: rgba(255,140,26,.3); }
     #btnOk:active, #btnOk.active { background: var(--orange); color: #100d0a; }
     #btnBack {
-        align-self: flex-end;
         width: ${compact ? '36px' : '44px'}; height: ${compact ? '36px' : '44px'}; border-radius: 50%;
         border: 3px solid var(--orange-dim); background: none;
         color: var(--orange); font-size: ${compact ? '16px' : '20px'}; cursor: pointer;

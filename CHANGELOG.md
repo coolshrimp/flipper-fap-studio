@@ -4,6 +4,21 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.4] — 2026-07-17
+
+### Added
+- **Real firmware SDK verification** — instead of only checking that the folder exists, the extension now reads the `update.fuf` manifest inside each configured SDK folder (searching up to two levels deep, matching how release archives extract):
+  - Shows the exact firmware version found, e.g. `mntm-012 ✓ verified`
+  - Flags folders containing the **wrong** firmware ("Found Momentum (mntm-012) — not RogueMaster") or no firmware at all
+  - Compares against the **latest GitHub release** of each firmware (`mntm-012 → mntm-013 available`); the ⟳ re-check button refreshes both uFBT and release info
+  - Same verification shown in the main tree's Firmware SDKs section tooltips
+
+### Changed
+- Live Screen controls tightened: the Back button now sits to the right of the D-pad with bottoms aligned (less vertical space)
+- README: new screenshots (dashboard, sidebar, live-screen pop-out), panel-height tip, SDK verification docs
+
+---
+
 ## [0.8.3] — 2026-07-17
 
 ### Changed
