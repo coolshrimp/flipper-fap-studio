@@ -4,6 +4,16 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.6] — 2026-07-17
+
+### Added
+- **Web updaters for all firmwares** (like Momentum's):
+  - **Unleashed** → [web.unleashedflip.com](https://web.unleashedflip.com/)
+  - **RogueMaster** → opens lab.flipper.net pre-loaded with the **latest RM release** (the link embeds the release archive from rogue-master.net, built from the live GitHub tag)
+  - Web-update button now shows on every firmware row in the sidebar tree, not just OEM/Momentum
+
+---
+
 ## [0.8.5] — 2026-07-17
 
 ### Added

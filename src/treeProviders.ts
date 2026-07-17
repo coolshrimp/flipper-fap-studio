@@ -176,6 +176,8 @@ export const FW_META: Record<string, {
     rogueMaster: {
         label: 'RogueMaster',
         githubUrl: 'https://github.com/RogueMaster/flipperzero-firmware-wPlugins/releases/latest',
+        webLabel: 'RM Update',
+        // webUrl is built dynamically from the latest release tag — see fwWebUrl()
     },
     momentum: {
         label: 'Momentum',
@@ -186,8 +188,24 @@ export const FW_META: Record<string, {
     unleashed: {
         label: 'Unleashed',
         githubUrl: 'https://github.com/DarkFlippers/unleashed-firmware/releases/latest',
+        webUrl: 'https://web.unleashedflip.com/',
+        webLabel: 'Unleashed Update',
     },
 };
+
+/**
+ * Web-updater URL for a firmware. RogueMaster has no static updater page —
+ * lab.flipper.net installs it directly when given the release archive from
+ * rogue-master.net, so the link is built from the latest release tag.
+ */
+export function fwWebUrl(fwId: string, latestTag?: string | null): string | undefined {
+    if (fwId === 'rogueMaster') {
+        if (!latestTag) { return FW_META.rogueMaster.githubUrl; }
+        const file = encodeURIComponent(`https://rogue-master.net/?file=${latestTag}.tgz`);
+        return `https://lab.flipper.net/?url=${file}&channel=${encodeURIComponent(latestTag)}&target=f7`;
+    }
+    return FW_META[fwId]?.webUrl;
+}
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 

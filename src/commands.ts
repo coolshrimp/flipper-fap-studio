@@ -5,7 +5,8 @@ import { StateManager } from './stateManager';
 import { runUfbt, buildWithTarget } from './ufbtRunner';
 import { SettingsPanel } from './settingsPanel';
 import { showGuidePanel } from './guidePanel';
-import { FirmwareStatusItem, RecentProjectItem, FW_META } from './treeProviders';
+import { FirmwareStatusItem, RecentProjectItem, FW_META, fwWebUrl } from './treeProviders';
+import { fetchLatestReleaseTag, repoSlugFromUrl } from './sdkCheck';
 import { buildState } from './buildState';
 import { getErrorHints, formatHintsForModal } from './errorHints';
 import { flipperSerial } from './serial/flipperSerial';
@@ -329,12 +330,19 @@ int32_t app_main(void* p) {
     });
 
     // ── Firmware: open web update page ───────────────────────────────────────
-    reg('flipperFapStudio.fw.openWebPage', (item: unknown) => {
+    reg('flipperFapStudio.fw.openWebPage', async (item: unknown) => {
         const fwItem = item as FirmwareStatusItem;
-        const meta = FW_META[fwItem?.fwId];
-        if (meta?.webUrl) {
-            vscode.env.openExternal(vscode.Uri.parse(meta.webUrl));
+        const fwId = fwItem?.fwId;
+        if (!fwId) { return; }
+        // RogueMaster's updater link embeds the latest release tag — fetch it
+        // (cached) so the web installer points at the current build
+        let tag: string | null = null;
+        if (fwId === 'rogueMaster') {
+            const slug = repoSlugFromUrl(FW_META[fwId].githubUrl);
+            tag = slug ? await fetchLatestReleaseTag(slug) : null;
         }
+        const url = fwWebUrl(fwId, tag);
+        if (url) { vscode.env.openExternal(vscode.Uri.parse(url)); }
     });
 
     // ── Recent projects ──────────────────────────────────────────────────────

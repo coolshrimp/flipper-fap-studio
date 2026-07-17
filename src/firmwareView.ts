@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as https from 'https';
 import { StateManager } from './stateManager';
-import { FW_META } from './treeProviders';
+import { FW_META, fwWebUrl } from './treeProviders';
 import {
     inspectSdkFolder, findAllFirmware, fetchLatestReleaseTag, repoSlugFromUrl, versionMatchesTag,
     FLAVOR_LABELS, FwFlavor, SdkInfo,
@@ -121,7 +121,7 @@ function buildEntries(
                 dotCls = 'found';
             }
         }
-        return { id, status, found, dotCls, path: p, ...meta };
+        return { id, status, found, dotCls, path: p, ...meta, webUrl: fwWebUrl(id, latest) };
     });
 }
 
@@ -180,9 +180,11 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
                     if (meta?.githubUrl) { vscode.env.openExternal(vscode.Uri.parse(meta.githubUrl)); }
                     break;
 
-                case 'openWeb':
-                    if (meta?.webUrl) { vscode.env.openExternal(vscode.Uri.parse(meta.webUrl)); }
+                case 'openWeb': {
+                    const url = msg.id ? fwWebUrl(msg.id, this._latestTags[msg.id]) : undefined;
+                    if (url) { vscode.env.openExternal(vscode.Uri.parse(url)); }
                     break;
+                }
 
                 case 'setPath': {
                     if (!msg.id || msg.id === 'oem') { break; }
