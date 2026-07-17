@@ -4,6 +4,19 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.8.5] — 2026-07-17
+
+### Added
+- **Deeper, flavor-aware SDK scanning** — folders are searched up to 4 levels deep for `update.fuf` (extract-in-a-folder layouts just work), and when one parent folder holds several firmwares, each target picks out its own
+- **Auto-assignment of cross-detected firmware** — if a scan finds a firmware sitting under the wrong target's path (e.g. RogueMaster inside the folder configured for Momentum), the correct target is pointed at it automatically, with a notification
+- **↻ Refresh button in the Firmware SDKs header** — re-checks local versions, re-runs auto-assignment, and refetches the latest GitHub releases in one click
+- RogueMaster version matching keys on the shared commit hash (`rm-420-3be1368f` ↔ release tag `RM0713-2232-3be1368f`), so up-to-date installs aren't flagged as stale
+
+### Changed
+- Unverifiable targets now simply show `Not found — latest <tag>` instead of verbose mismatch text (details remain in the tree tooltips)
+
+---
+
 ## [0.8.4] — 2026-07-17
 
 ### Added

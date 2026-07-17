@@ -58,31 +58,54 @@ function readManifest(dir: string): SdkInfo | null {
     }
 }
 
-/** Look for a firmware update manifest in root or up to two levels below it. */
-export function inspectSdkFolder(root: string): SdkInfo {
+const MAX_DEPTH = 4;
+const MAX_DIRS = 400;
+
+/**
+ * Collect every firmware update manifest in root or up to MAX_DEPTH levels
+ * below it (extracted releases often nest a folder in a folder).
+ */
+export function findAllFirmware(root: string): SdkInfo[] {
+    const found: SdkInfo[] = [];
+    try {
+        if (!root || !fs.existsSync(root)) { return found; }
+        let visited = 0;
+        const walk = (dir: string, depth: number) => {
+            if (visited++ > MAX_DIRS || found.length >= 25) { return; }
+            const manifest = readManifest(dir);
+            if (manifest) { found.push(manifest); return; } // don't descend into a package
+            if (depth >= MAX_DEPTH) { return; }
+            let entries: fs.Dirent[];
+            try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+            for (const entry of entries) {
+                if (!entry.isDirectory()) { continue; }
+                if (entry.name.startsWith('.') || entry.name === 'node_modules') { continue; }
+                walk(path.join(dir, entry.name), depth + 1);
+            }
+        };
+        walk(root, 0);
+    } catch { /* partial results are fine */ }
+    return found;
+}
+
+/**
+ * Find the firmware in a folder. When several firmwares live under one parent
+ * folder, `expectedFlavor` picks the matching one.
+ */
+export function inspectSdkFolder(root: string, expectedFlavor?: FwFlavor): SdkInfo {
     try {
         if (!root) { return { ok: false, problem: 'Not configured' }; }
         if (!fs.existsSync(root)) { return { ok: false, problem: 'Path not found' }; }
 
-        const direct = readManifest(root);
-        if (direct) { return direct; }
-
-        const levelOne: string[] = [];
-        for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-            if (!entry.isDirectory()) { continue; }
-            const sub = path.join(root, entry.name);
-            const found = readManifest(sub);
-            if (found) { return found; }
-            levelOne.push(sub);
+        const found = findAllFirmware(root);
+        if (found.length === 0) {
+            return { ok: false, problem: 'No firmware found in folder (missing update.fuf)' };
         }
-        for (const sub of levelOne) {
-            for (const entry of fs.readdirSync(sub, { withFileTypes: true })) {
-                if (!entry.isDirectory()) { continue; }
-                const found = readManifest(path.join(sub, entry.name));
-                if (found) { return found; }
-            }
+        if (expectedFlavor) {
+            const match = found.find(f => f.flavor === expectedFlavor);
+            if (match) { return match; }
         }
-        return { ok: false, problem: 'No firmware found in folder (missing update.fuf)' };
+        return found[0];
     } catch (err) {
         return { ok: false, problem: (err as Error).message };
     }
@@ -136,10 +159,15 @@ export function repoSlugFromUrl(url: string): string | null {
 
 /**
  * Loose match between a local manifest version ("mntm-012") and a release tag
- * ("mntm-012" / "RM1202-1122..."): case-insensitive containment either way.
+ * ("mntm-012" / "RM0713-2232-3be1368f"): case-insensitive containment either
+ * way, or a shared commit-hash token (RogueMaster's manifest says
+ * "rm-420-3be1368f" while its tag is "RM0713-2232-3be1368f").
  */
 export function versionMatchesTag(version: string, tag: string): boolean {
     const v = version.toLowerCase().trim();
     const t = tag.toLowerCase().trim();
-    return v === t || t.includes(v) || v.includes(t);
+    if (v === t || t.includes(v) || v.includes(t)) { return true; }
+    const hashTokens = (s: string) => s.split(/[^0-9a-z]+/).filter(x => /^[0-9a-f]{7,}$/.test(x));
+    const tagHashes = new Set(hashTokens(t));
+    return hashTokens(v).some(h => tagHashes.has(h));
 }

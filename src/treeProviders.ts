@@ -213,8 +213,10 @@ function getFirmwareStatusItem(fwId: string, state: StateManager): FirmwareStatu
     }
 
     const sdkPath = state.getTargetPath(fwId);
-    const info = inspectSdkFolder(sdkPath);
-    const expected: Record<string, string> = { momentum: 'momentum', unleashed: 'unleashed', rogueMaster: 'rogueMaster' };
+    const expected: Record<string, 'momentum' | 'unleashed' | 'rogueMaster'> = {
+        momentum: 'momentum', unleashed: 'unleashed', rogueMaster: 'rogueMaster',
+    };
+    const info = inspectSdkFolder(sdkPath, expected[fwId]);
     const flavorOk = info.ok && (!expected[fwId] || info.flavor === expected[fwId]);
     const exists = info.ok && flavorOk;
 
@@ -229,25 +231,18 @@ function getFirmwareStatusItem(fwId: string, state: StateManager): FirmwareStatu
             '⚠ No SDK path configured.',
             'Click the folder icon or open **Settings** to set the path.',
         ];
-    } else if (!info.ok) {
-        status = info.problem ?? 'Not verified';
-        bodyLines = [
-            `**${meta.label}**`,
-            '',
-            `⚠ ${info.problem ?? 'Could not verify the firmware in this folder.'}`,
-            `\`${sdkPath}\``,
-            '',
-            'Point the path at an extracted firmware update package (the folder containing `update.fuf`, or its parent).',
-        ];
     } else if (!flavorOk) {
-        status = `Found ${FLAVOR_LABELS[info.flavor ?? 'unknown']} (${info.version})`;
+        status = 'Not found';
+        const detail = !info.ok
+            ? (info.problem ?? 'Could not verify the firmware in this folder.')
+            : `This folder contains **${FLAVOR_LABELS[info.flavor ?? 'unknown']}** firmware (\`${info.version}\`), not ${meta.label}.`;
         bodyLines = [
-            `**${meta.label}**`,
+            `**${meta.label}** — not found`,
             '',
-            `⚠ This folder contains **${FLAVOR_LABELS[info.flavor ?? 'unknown']}** firmware (\`${info.version}\`), not ${meta.label}.`,
+            `⚠ ${detail}`,
             `\`${sdkPath}\``,
             '',
-            'Download the correct firmware from the GitHub releases and point the path at it.',
+            'Download the firmware from GitHub Releases, extract it, and point the path at it (subfolders are scanned automatically).',
         ];
     } else {
         status = `${info.version} ✓`;

@@ -4,8 +4,8 @@ import * as https from 'https';
 import { StateManager } from './stateManager';
 import { FW_META } from './treeProviders';
 import {
-    inspectSdkFolder, fetchLatestReleaseTag, repoSlugFromUrl, versionMatchesTag,
-    FLAVOR_LABELS, FwFlavor,
+    inspectSdkFolder, findAllFirmware, fetchLatestReleaseTag, repoSlugFromUrl, versionMatchesTag,
+    FLAVOR_LABELS, FwFlavor, SdkInfo,
 } from './sdkCheck';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -97,8 +97,9 @@ function buildEntries(
         }
 
         const p = state.getTargetPath(id);
-        const info = inspectSdkFolder(p);
+        const info = inspectSdkFolder(p, EXPECTED_FLAVOR[id]);
         const latest = latestTags[id];
+        const verified = info.ok && (!EXPECTED_FLAVOR[id] || info.flavor === EXPECTED_FLAVOR[id]);
 
         let status: string;
         let dotCls: FwEntry['dotCls'];
@@ -107,12 +108,8 @@ function buildEntries(
         if (!p) {
             status = 'Not configured';
             dotCls = 'missing';
-        } else if (!info.ok) {
-            // folder may exist but hold no verifiable firmware — say so explicitly
-            status = info.problem ?? 'Not verified';
-            dotCls = 'missing';
-        } else if (EXPECTED_FLAVOR[id] && info.flavor !== EXPECTED_FLAVOR[id]) {
-            status = `Found ${FLAVOR_LABELS[info.flavor ?? 'unknown']} (${info.version}) — not ${meta.label}`;
+        } else if (!verified) {
+            status = `Not found${latest ? ` — latest ${latest}` : ''}`;
             dotCls = 'missing';
         } else {
             found = true;
@@ -137,8 +134,10 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
     private _latestTags: Record<string, string | null> = {};
 
     constructor(private readonly state: StateManager) {
-        this._checkUfbt();
-        this._checkLatestReleases();
+        void this._autoAssignPaths().then(() => {
+            this._checkUfbt();
+            this._checkLatestReleases();
+        });
     }
 
     resolveWebviewView(view: vscode.WebviewView) {
@@ -168,10 +167,13 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
                 }
 
                 case 'checkUfbt':
+                case 'refreshAll':
                     this._ufbt = { ...this._ufbt, checking: true };
                     this._render();
-                    this._checkUfbt();
-                    this._checkLatestReleases(true);
+                    void this._autoAssignPaths().then(() => {
+                        this._checkUfbt();
+                        this._checkLatestReleases(true);
+                    });
                     break;
 
                 case 'openGitHub':
@@ -220,6 +222,51 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
 
         this._ufbt = { installed, latest, checking: false };
         this._render();
+    }
+
+    /**
+     * If a configured path turns out to contain a *different* firmware (or a
+     * parent folder holding several), point each target at the package that
+     * actually matches it — e.g. RogueMaster found while checking Momentum's
+     * folder gets assigned to the RogueMaster target automatically.
+     */
+    private async _autoAssignPaths() {
+        const keyMap: Record<string, string> = {
+            rogueMaster: 'targets.rogueMasterPath',
+            momentum: 'targets.momentumPath',
+            unleashed: 'targets.unleashedPath',
+        };
+        try {
+            // gather every firmware package reachable from any configured path
+            const candidates: SdkInfo[] = [];
+            const seen = new Set<string>();
+            for (const id of Object.keys(keyMap)) {
+                for (const info of findAllFirmware(this.state.getTargetPath(id))) {
+                    if (info.dir && !seen.has(info.dir)) {
+                        seen.add(info.dir);
+                        candidates.push(info);
+                    }
+                }
+            }
+
+            const cfg = vscode.workspace.getConfiguration('flipperFapStudio');
+            const assigned: string[] = [];
+            for (const id of Object.keys(keyMap)) {
+                const expected = EXPECTED_FLAVOR[id];
+                const current = this.state.getTargetPath(id);
+                const info = inspectSdkFolder(current, expected);
+                if (info.ok && info.flavor === expected) { continue; } // already good
+                const match = candidates.find(c => c.flavor === expected && c.dir);
+                if (match?.dir && match.dir !== current) {
+                    await cfg.update(keyMap[id], match.dir, vscode.ConfigurationTarget.Global);
+                    assigned.push(`${FLAVOR_LABELS[expected]} → ${match.version}`);
+                }
+            }
+            if (assigned.length > 0) {
+                vscode.window.showInformationMessage(
+                    `Firmware detected and assigned automatically: ${assigned.join(', ')}`);
+            }
+        } catch { /* best effort — never block the panel */ }
     }
 
     /** Fetch each firmware's latest GitHub release tag for version comparison. */
@@ -435,6 +482,10 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
     <rect x="2" y="2" width="20" height="20" rx="3"/><path d="M8 12h8M12 8v8"/>
   </svg>
   <span class="header-title">Firmware SDKs</span>
+  <button class="btn btn-icon" title="Re-check all firmwares (local versions + latest releases)" onclick="send('refreshAll')">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg></button>
 </div>
 ${rows}
 <script>
