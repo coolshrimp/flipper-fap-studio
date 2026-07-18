@@ -151,43 +151,78 @@ export class DashboardPanel {
         return count;
     }
 
-    /** Upload the built .fap from dist/ to /ext/apps/<Category>/ on the device. */
+    /** Pick a .fap (defaulting to the app's dist/), pick a category, upload to /ext/apps/… */
     private async installFap(): Promise<void> {
         const finish = () => this.post({ type: 'installBusy', busy: false });
         this.post({ type: 'installBusy', busy: true });
         try {
+            // defaults from the active app (used for picker location + suggested category)
             const folder = this.state.getAppFolder();
-            if (!folder) {
-                void vscode.window.showErrorMessage('No app folder set — pick one in the Flipper sidebar first.');
-                return;
-            }
             let appId = '';
-            let category = '';
-            try {
-                const fam = fs.readFileSync(path.join(folder, 'application.fam'), 'utf8');
-                appId = /appid\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
-                category = /fap_category\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
-            } catch { /* reported below */ }
-            if (!appId) {
-                void vscode.window.showErrorMessage(`No application.fam with an appid found in ${folder}.`);
-                return;
+            let famCategory = '';
+            if (folder) {
+                try {
+                    const fam = fs.readFileSync(path.join(folder, 'application.fam'), 'utf8');
+                    appId = /appid\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
+                    famCategory = /fap_category\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
+                } catch { /* no active app — picker still works */ }
             }
 
-            const distDir = path.join(folder, 'dist');
-            let local = path.join(distDir, `${appId}.fap`);
-            if (!fs.existsSync(local)) {
-                const faps = fs.existsSync(distDir) ? fs.readdirSync(distDir).filter(f => f.endsWith('.fap')) : [];
-                if (faps.length === 0) {
-                    void vscode.window.showErrorMessage('No built .fap found in dist/ — run Build .fap first.');
-                    return;
-                }
-                local = path.join(distDir, faps[0]);
+            // 1) which .fap?
+            const distDir = folder ? path.join(folder, 'dist') : undefined;
+            const defaultDir = distDir && fs.existsSync(distDir) ? distDir : folder;
+            const picked = await vscode.window.showOpenDialog({
+                title: 'Select the .fap to install on the Flipper',
+                openLabel: 'Install this .fap',
+                canSelectMany: false,
+                filters: { 'Flipper application': ['fap'] },
+                defaultUri: defaultDir ? vscode.Uri.file(defaultDir) : undefined,
+            });
+            if (!picked || picked.length === 0) { return; }
+            const local = picked[0].fsPath;
+            const fapName = path.basename(local);
+
+            // 2) which folder on the device? offer existing /ext/apps categories
+            const isCurrentApp = appId !== '' && fapName.toLowerCase() === `${appId.toLowerCase()}.fap`;
+            const suggested = isCurrentApp ? famCategory : '';
+            const deviceCats = (await flipperSerial.listDir('/ext/apps').catch(() => []))
+                .filter(e => e.type === FileType.DIR && !e.name.startsWith('.'))
+                .map(e => e.name);
+            const seen = new Set<string>();
+            const items: vscode.QuickPickItem[] = [];
+            if (suggested) {
+                items.push({ label: suggested, description: 'from application.fam — recommended' });
+                seen.add(suggested);
+            }
+            for (const c of deviceCats.sort((a, b) => a.localeCompare(b))) {
+                if (!seen.has(c)) { items.push({ label: c, description: 'existing folder on device' }); seen.add(c); }
+            }
+            items.push({ label: '$(root-folder) /ext/apps (no category)', description: 'install at the apps root' });
+            items.push({ label: '$(edit) Other…', description: 'type a new category folder name' });
+            const choice = await vscode.window.showQuickPick(items, {
+                title: `Install ${fapName} — choose the category folder under /ext/apps`,
+                placeHolder: 'Where on the SD card should it go?',
+            });
+            if (!choice) { return; }
+            let category: string;
+            if (choice.label.includes('/ext/apps (no category)')) {
+                category = '';
+            } else if (choice.label.includes('Other…')) {
+                const typed = await vscode.window.showInputBox({
+                    title: 'New category folder under /ext/apps',
+                    prompt: 'Folder name, e.g. Tools or GPIO',
+                    validateInput: v => /^[^\\/:*?"<>|]*$/.test(v.trim()) ? undefined : 'Just a folder name — no slashes',
+                });
+                if (typed === undefined) { return; }
+                category = typed.trim();
+            } else {
+                category = choice.label;
             }
 
             const categoryDir = category ? `/ext/apps/${category}` : '/ext/apps';
-            const devPath = `${categoryDir}/${path.basename(local)}`;
+            const devPath = `${categoryDir}/${fapName}`;
             await vscode.window.withProgress(
-                { location: vscode.ProgressLocation.Notification, title: `Installing ${path.basename(local)} → ${categoryDir}…` },
+                { location: vscode.ProgressLocation.Notification, title: `Installing ${fapName} → ${categoryDir}…` },
                 async () => {
                     const data = fs.readFileSync(local);
                     // mkdir is idempotent-ish — EXIST errors are fine
