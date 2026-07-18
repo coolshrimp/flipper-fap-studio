@@ -4,6 +4,14 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.11.1] — 2026-07-18
+
+### Changed
+- **Install .fap** now opens a file picker (starting in the app's `dist/`) instead of silently installing the working directory's build, then asks which `/ext/apps` category folder to use — offering the category from `application.fam` (recommended), the existing folders read live from the device, the apps root, or a new folder name
+- Bluetooth button tooltip/message now notes there is no default PIN — the Flipper shows a one-time 6-digit pairing code on its screen
+
+---
+
 ## [0.11.0] — 2026-07-18
 
 ### Added — Device Dashboard
