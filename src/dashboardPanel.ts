@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { flipperSerial, FileType } from './serial/flipperSerial';
+import { StateManager } from './stateManager';
 
 /**
  * "Device Dashboard" editor tab — device / firmware / battery / storage stats
@@ -10,19 +12,19 @@ import { flipperSerial, FileType } from './serial/flipperSerial';
 export class DashboardPanel {
     private static current: DashboardPanel | null = null;
 
-    static show(context: vscode.ExtensionContext) {
+    static show(context: vscode.ExtensionContext, state: StateManager) {
         if (DashboardPanel.current) {
             DashboardPanel.current.panel.reveal();
             return;
         }
-        DashboardPanel.current = new DashboardPanel(context);
+        DashboardPanel.current = new DashboardPanel(context, state);
     }
 
     private readonly panel: vscode.WebviewPanel;
     private generation = 0;
     private disposed = false;
 
-    private constructor(context: vscode.ExtensionContext) {
+    private constructor(context: vscode.ExtensionContext, private readonly state: StateManager) {
         this.panel = vscode.window.createWebviewPanel(
             'flipperDashboard',
             'Flipper Dashboard',
@@ -30,11 +32,32 @@ export class DashboardPanel {
             { enableScripts: true, retainContextWhenHidden: true }
         );
         this.panel.iconPath = vscode.Uri.file(path.join(context.extensionPath, 'media', 'flipper-icon.svg'));
-        this.panel.webview.html = html();
+
+        // device render — a custom media/flipper-device.png wins over the bundled art
+        const png = path.join(context.extensionPath, 'media', 'flipper-device.png');
+        const img = fs.existsSync(png) ? png : path.join(context.extensionPath, 'media', 'flipperzero.webp');
+        const imgSrc = this.panel.webview.asWebviewUri(vscode.Uri.file(img)).toString();
+        this.panel.webview.html = html(imgSrc);
 
         const subs: vscode.Disposable[] = [
             this.panel.webview.onDidReceiveMessage((msg: { type: string }) => {
-                if (msg.type === 'ready' || msg.type === 'refresh') { void this.load(); }
+                switch (msg.type) {
+                    case 'ready':
+                    case 'refresh':
+                        void this.load();
+                        break;
+                    case 'openFiles':
+                        void vscode.commands.executeCommand('flipperDeviceFiles.focus');
+                        break;
+                    case 'installFap':
+                        void this.installFap();
+                        break;
+                    case 'bluetooth':
+                        void vscode.window.showInformationMessage(
+                            'Bluetooth (BLE) is planned but not available yet — device tools are USB-only for now. ' +
+                            'The dashboard, file browser, and live screen all share one connection layer, so BLE will enable all of them at once when it lands.');
+                        break;
+                }
             }),
         ];
 
@@ -126,9 +149,62 @@ export class DashboardPanel {
         }
         return count;
     }
+
+    /** Upload the built .fap from dist/ to /ext/apps/<Category>/ on the device. */
+    private async installFap(): Promise<void> {
+        const finish = () => this.post({ type: 'installBusy', busy: false });
+        this.post({ type: 'installBusy', busy: true });
+        try {
+            const folder = this.state.getAppFolder();
+            if (!folder) {
+                void vscode.window.showErrorMessage('No app folder set — pick one in the Flipper sidebar first.');
+                return;
+            }
+            let appId = '';
+            let category = '';
+            try {
+                const fam = fs.readFileSync(path.join(folder, 'application.fam'), 'utf8');
+                appId = /appid\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
+                category = /fap_category\s*=\s*["']([^"']+)["']/.exec(fam)?.[1] ?? '';
+            } catch { /* reported below */ }
+            if (!appId) {
+                void vscode.window.showErrorMessage(`No application.fam with an appid found in ${folder}.`);
+                return;
+            }
+
+            const distDir = path.join(folder, 'dist');
+            let local = path.join(distDir, `${appId}.fap`);
+            if (!fs.existsSync(local)) {
+                const faps = fs.existsSync(distDir) ? fs.readdirSync(distDir).filter(f => f.endsWith('.fap')) : [];
+                if (faps.length === 0) {
+                    void vscode.window.showErrorMessage('No built .fap found in dist/ — run Build .fap first.');
+                    return;
+                }
+                local = path.join(distDir, faps[0]);
+            }
+
+            const categoryDir = category ? `/ext/apps/${category}` : '/ext/apps';
+            const devPath = `${categoryDir}/${path.basename(local)}`;
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Notification, title: `Installing ${path.basename(local)} → ${categoryDir}…` },
+                async () => {
+                    const data = fs.readFileSync(local);
+                    // mkdir is idempotent-ish — EXIST errors are fine
+                    await flipperSerial.mkdir('/ext/apps').catch(() => undefined);
+                    if (category) { await flipperSerial.mkdir(categoryDir).catch(() => undefined); }
+                    await flipperSerial.writeFile(devPath, data);
+                });
+            void vscode.window.showInformationMessage(`Installed ${path.basename(local)} to ${categoryDir} — find it under Apps on the Flipper.`);
+            void vscode.commands.executeCommand('flipperFapStudio.files.refresh');
+        } catch (err) {
+            void vscode.window.showErrorMessage(`Install failed: ${(err as Error).message}`);
+        } finally {
+            finish();
+        }
+    }
 }
 
-function html(): string {
+function html(imgSrc: string): string {
     return /* html */ `<!DOCTYPE html>
 <html>
 <head>
@@ -183,6 +259,16 @@ function html(): string {
     .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; font-size: 11.5px; }
     .kv b { font-weight: normal; color: var(--fg-soft); letter-spacing: .5px; }
     .kv span { color: #ffd9ad; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #devImg {
+        width: 100%; max-width: 240px; align-self: center;
+        filter: drop-shadow(0 0 10px rgba(255,140,26,.25));
+    }
+    #actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stHead {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 11px; letter-spacing: 1.5px; color: var(--fg-soft); margin-top: 4px;
+    }
+    .stHead span { color: #ffd9ad; font-size: 14px; }
     #libs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
     .lib {
         border: 2px solid var(--orange-dim); border-radius: 10px; background: rgba(0,0,0,.45);
@@ -210,9 +296,16 @@ function html(): string {
 
     <div id="errorBox"></div>
 
+    <div id="actions">
+        <button class="btn" id="btnFiles" title="Open the on-device file browser in the sidebar">⬚ FILE MANAGER</button>
+        <button class="btn" id="btnInstall" title="Copy the built .fap from dist/ to /ext/apps/<Category>/ on the SD card">⬇ INSTALL .FAP → SD</button>
+        <button class="btn" id="btnBle" title="BLE transport is planned — USB only for now">ᗬ BLUETOOTH</button>
+    </div>
+
     <div id="grid">
         <div class="card">
             <h2>⚡ DEVICE</h2>
+            <img id="devImg" src="${imgSrc}" alt="Flipper Zero">
             <div class="big" id="devName">—</div>
             <div class="kv" id="devRows"></div>
             <details><summary>ALL DEVICE INFO</summary><div class="kv" id="allInfo"></div></details>
@@ -224,14 +317,11 @@ function html(): string {
             <div class="kv" id="battRows"></div>
         </div>
         <div class="card">
-            <h2>▤ SD CARD (/ext)</h2>
-            <div class="big" id="extPct">—<small>% used</small></div>
+            <h2>▤ STORAGE</h2>
+            <div class="stHead"><span style="color:var(--fg-soft);font-size:11px">SD CARD (/ext)</span><span id="extPct">—</span></div>
             <div class="bar" id="extBar"><i></i></div>
             <div class="kv" id="extRows"></div>
-        </div>
-        <div class="card">
-            <h2>▦ INTERNAL (/int)</h2>
-            <div class="big" id="intPct">—<small>% used</small></div>
+            <div class="stHead"><span style="color:var(--fg-soft);font-size:11px">INTERNAL (/int)</span><span id="intPct">—</span></div>
             <div class="bar" id="intBar"><i></i></div>
             <div class="kv" id="intRows"></div>
         </div>
@@ -284,13 +374,13 @@ function html(): string {
 
     function storageCard(prefix, info) {
         if (!info || !info.totalSpace) {
-            $(prefix + 'Pct').innerHTML = '—<small>% used</small>';
-            kvRows($(prefix + 'Rows'), [['STATUS', 'not available']]);
+            $(prefix + 'Pct').textContent = 'not available';
+            $(prefix + 'Rows').innerHTML = '';
             return;
         }
         const used = info.totalSpace - info.freeSpace;
         const pct = Math.round(used / info.totalSpace * 100);
-        $(prefix + 'Pct').innerHTML = pct + '<small>% used</small>';
+        $(prefix + 'Pct').textContent = pct + '% used';
         const bar = $(prefix + 'Bar');
         bar.classList.toggle('low', pct >= 90);
         bar.firstElementChild.style.width = pct + '%';
@@ -370,10 +460,17 @@ function html(): string {
             case 'done':
                 $('btnRefresh').disabled = false;
                 break;
+            case 'installBusy':
+                $('btnInstall').disabled = m.busy;
+                $('btnInstall').textContent = m.busy ? '⧖ INSTALLING…' : '⬇ INSTALL .FAP → SD';
+                break;
         }
     });
 
     $('btnRefresh').addEventListener('click', () => vscode.postMessage({ type: 'refresh' }));
+    $('btnFiles').addEventListener('click', () => vscode.postMessage({ type: 'openFiles' }));
+    $('btnInstall').addEventListener('click', () => vscode.postMessage({ type: 'installFap' }));
+    $('btnBle').addEventListener('click', () => vscode.postMessage({ type: 'bluetooth' }));
     vscode.postMessage({ type: 'ready' });
 </script>
 </body>

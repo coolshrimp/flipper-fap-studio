@@ -8,10 +8,14 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ### Added — Device Dashboard
 - One-page device health check over USB RPC: device name, firmware version/branch/fork, hardware model + UID, and an expandable "All Device Info" list
+- Flipper device render in the device card (drop a `media/flipper-device.png` in to customize)
 - Battery card — charge % with bar, voltage, current draw, temperature, health
-- Storage cards — SD card (`/ext`) and internal flash (`/int`) used/free/total with usage bars
+- Combined storage card — SD card (`/ext`) and internal flash (`/int`) used/free/total with usage bars in one pane
 - Library counts — Sub-GHz, Infrared, NFC, RFID, BadUSB, Apps (recursive SD scan with caps, fills in incrementally)
-- New `Device Dashboard` sidebar button + command; read-only — borrows the RPC session only while loading
+- **⛚ File Manager** button — jumps to the on-device file browser
+- **⬇ Install .fap → SD** button — uploads the built `.fap` from `dist/` straight to `/ext/apps/<Category>/` over RPC (creates the category folder if needed)
+- **ᛒ Bluetooth** button — placeholder; BLE transport is planned, USB-only for now
+- New `Device Dashboard` sidebar button + command; read-only stats — borrows the RPC session only while loading
 - Protocol: `SystemDeviceInfo`, `SystemPowerInfo`, and `StorageInfo` RPC messages added to the built-in protobuf codec
 
 ---

@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('flipperFapStudio.dashboard.open', () =>
-            DashboardPanel.show(context))
+            DashboardPanel.show(context, state))
     );
 
     // ── Status bar ────────────────────────────────────────────────────────────
