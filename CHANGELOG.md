@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.12.1] — 2026-07-18
+
+### Fixed
+- BLE discovery no longer requires the advertised name to start with "Flipper" — Flippers are renameable (e.g. "Flip"), so the scan now collects every nearby BLE device, auto-matches flipper-ish names, and falls back to a device picker listing everything found
+
+---
+
 ## [0.12.0] — 2026-07-18
 
 ### Added — Bluetooth LE (experimental)
