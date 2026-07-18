@@ -139,8 +139,10 @@ Click **Device Dashboard** in the sidebar for a one-page health check of the con
 - **Storage** — SD card (`/ext`) and internal flash (`/int`) used/free/total with usage bars
 - **Library counts** — Sub-GHz, Infrared, NFC, RFID, BadUSB, and Apps, counted live from the SD card (recursive scan with sane caps, so huge libraries stay fast; counts fill in as they finish)
 - **↻ Refresh** re-reads everything; the dashboard borrows the RPC session only while loading, so it never holds the port
+- **ᗬ Bluetooth (experimental)** — pair the Flipper with your PC (it shows a one-time 6-digit code — no default PIN), then click to connect over BLE; the dashboard stats, library counts, and **Install .fap** then work wirelessly, no cable. Click again to disconnect. Live Screen and the file browser sidebar remain USB-only for now.
+- **⬇ Install .fap** — pick any built `.fap` and a `/ext/apps` category folder (read live from the device) and it uploads over USB or BLE
 
-All of it uses the same read-only RPC calls as the rest of the extension — nothing is written to the device.
+All of it uses the same read-only RPC calls as the rest of the extension — nothing is written to the device unless you install an app.
 
 ### Flipper Files (on Device)
 
@@ -218,10 +220,11 @@ npx vsce package --allow-missing-repository
 
 - [x] ~~Detect connected Flipper~~ — done in 0.8.0 (auto-detect + live screen, serial log, file browser)
 - [x] ~~Device Dashboard~~ — done in 0.11.0 (battery, storage, firmware, library stats)
+- [x] ~~BLE transport (experimental)~~ — done in 0.12.0 (dashboard + install over Bluetooth; live screen/file sidebar still USB)
 - [ ] Package Release ZIP (excludes secrets, confirms before packaging)
 - [ ] Multi-target batch build (OEM + all custom targets at once)
 - [ ] Install built `.fap` directly into `/ext/apps` from the file browser
-- [ ] BLE transport (device tools without the cable — dashboard/files/screen ride the same RPC layer, so they'd all get it at once)
+- [ ] BLE for Live Screen + file browser sidebar
 
 ---
 

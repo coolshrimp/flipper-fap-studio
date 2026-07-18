@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { flipperSerial, FileType } from './serial/flipperSerial';
+import { flipperBle } from './serial/flipperBle';
 import { StateManager } from './stateManager';
 
 /**
  * "Device Dashboard" editor tab — device / firmware / battery / storage stats
- * and library counts, fetched over the extension's own USB serial RPC layer.
- * Everything is read-only and loads in one burst, so it never holds the port.
+ * and library counts, fetched over USB serial RPC or (when connected) the BLE
+ * RPC link. Everything loads in one burst, so it never holds the transport.
  */
 export class DashboardPanel {
     private static current: DashboardPanel | null = null;
@@ -53,13 +54,16 @@ export class DashboardPanel {
                         void this.installFap();
                         break;
                     case 'bluetooth':
-                        void vscode.window.showInformationMessage(
-                            'Bluetooth (BLE) is planned but not available yet — device tools are USB-only for now. ' +
-                            'Tip: when pairing the Flipper over Bluetooth there is no default PIN — it shows a one-time 6-digit code on its screen to confirm. ' +
-                            'The dashboard, file browser, and live screen all share one connection layer, so BLE will enable all of them at once when it lands.');
+                        void this.toggleBluetooth();
                         break;
                 }
             }),
+            flipperBle.onStatus(s => {
+                if (s.level === 'error' || s.level === 'warn') {
+                    void vscode.window.showWarningMessage(`Bluetooth: ${s.text}`);
+                }
+            }),
+            flipperBle.onDidChangeState(() => this.postBleState()),
         ];
 
         this.panel.onDidDispose(() => {
@@ -72,6 +76,46 @@ export class DashboardPanel {
 
     private post(msg: unknown) {
         if (!this.disposed) { void this.panel.webview.postMessage(msg); }
+    }
+
+    /** Whichever transport is live — BLE when connected, USB serial otherwise. */
+    private get link(): {
+        getDeviceInfo(): Promise<Record<string, string>>;
+        getPowerInfo(): Promise<Record<string, string>>;
+        getStorageInfo(p: string): Promise<{ totalSpace: number; freeSpace: number }>;
+        listDir(p: string): Promise<Array<{ type: number; name: string }>>;
+        writeFile(p: string, d: Buffer): Promise<void>;
+        mkdir(p: string): Promise<void>;
+    } {
+        return flipperBle.isConnected() ? flipperBle : flipperSerial;
+    }
+
+    private postBleState() {
+        this.post({
+            type: 'ble',
+            connected: flipperBle.isConnected(),
+            name: flipperBle.deviceName,
+        });
+    }
+
+    private async toggleBluetooth(): Promise<void> {
+        this.post({ type: 'bleBusy', busy: true });
+        try {
+            if (flipperBle.isConnected()) {
+                await flipperBle.disconnect();
+            } else {
+                await vscode.window.withProgress(
+                    { location: vscode.ProgressLocation.Notification, title: 'Bluetooth: scanning for a Flipper… (pair it in Windows first — confirm the 6-digit code on its screen)' },
+                    () => flipperBle.connect());
+                void vscode.window.showInformationMessage(`Bluetooth connected — ${flipperBle.deviceName}. Dashboard now reads over BLE.`);
+                void this.load();
+            }
+        } catch (err) {
+            void vscode.window.showErrorMessage(`Bluetooth: ${(err as Error).message}`);
+        } finally {
+            this.post({ type: 'bleBusy', busy: false });
+            this.postBleState();
+        }
     }
 
     private async load(): Promise<void> {
@@ -137,7 +181,7 @@ export class DashboardPanel {
             if (!live()) { throw new Error('cancelled'); }
             const { p, depth } = queue.shift()!;
             if (++dirsVisited > MAX_DIRS) { break; }
-            const entries = await flipperSerial.listDir(p);
+            const entries = await this.link.listDir(p);
             for (const e of entries) {
                 if (e.type === FileType.DIR) {
                     if (depth < MAX_DEPTH && !e.name.startsWith('.')) {
@@ -185,7 +229,7 @@ export class DashboardPanel {
             // 2) which folder on the device? offer existing /ext/apps categories
             const isCurrentApp = appId !== '' && fapName.toLowerCase() === `${appId.toLowerCase()}.fap`;
             const suggested = isCurrentApp ? famCategory : '';
-            const deviceCats = (await flipperSerial.listDir('/ext/apps').catch(() => []))
+            const deviceCats = (await this.link.listDir('/ext/apps').catch(() => []))
                 .filter(e => e.type === FileType.DIR && !e.name.startsWith('.'))
                 .map(e => e.name);
             const seen = new Set<string>();
@@ -221,14 +265,15 @@ export class DashboardPanel {
 
             const categoryDir = category ? `/ext/apps/${category}` : '/ext/apps';
             const devPath = `${categoryDir}/${fapName}`;
+            const link = this.link;
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: `Installing ${fapName} → ${categoryDir}…` },
                 async () => {
                     const data = fs.readFileSync(local);
                     // mkdir is idempotent-ish — EXIST errors are fine
-                    await flipperSerial.mkdir('/ext/apps').catch(() => undefined);
-                    if (category) { await flipperSerial.mkdir(categoryDir).catch(() => undefined); }
-                    await flipperSerial.writeFile(devPath, data);
+                    await link.mkdir('/ext/apps').catch(() => undefined);
+                    if (category) { await link.mkdir(categoryDir).catch(() => undefined); }
+                    await link.writeFile(devPath, data);
                 });
             void vscode.window.showInformationMessage(`Installed ${path.basename(local)} to ${categoryDir} — find it under Apps on the Flipper.`);
             void vscode.commands.executeCommand('flipperFapStudio.files.refresh');
@@ -272,6 +317,7 @@ function html(imgSrc: string): string {
     }
     .btn:hover { background: rgba(255,140,26,.15); }
     .btn:disabled { opacity: .4; cursor: default; }
+    .btn.on { background: rgba(63,185,80,.15); border-color: #3fb950; color: #3fb950; }
     #errorBox {
         display: none; border: 2px solid #f14c4c; border-radius: 8px;
         color: #f14c4c; padding: 10px 14px; font-size: 12px; line-height: 1.5;
@@ -335,7 +381,7 @@ function html(imgSrc: string): string {
     <div id="actions">
         <button class="btn" id="btnFiles" title="Open the on-device file browser in the sidebar">⬚ FILE MANAGER</button>
         <button class="btn" id="btnInstall" title="Copy the built .fap from dist/ to /ext/apps/<Category>/ on the SD card">⬇ INSTALL .FAP → SD</button>
-        <button class="btn" id="btnBle" title="BLE transport is planned — USB only for now. When pairing over Bluetooth (e.g. with your phone), there is no default PIN: the Flipper shows a one-time 6-digit pairing code on its screen — confirm it there.">ᛒ BLUETOOTH</button>
+        <button class="btn" id="btnBle" title="Connect to the Flipper over Bluetooth LE. Pair it with this PC first (Windows Settings → Bluetooth) — there is no default PIN, the Flipper shows a one-time 6-digit code on its screen to confirm. While connected, the dashboard reads over BLE instead of USB.">ᗬ BLUETOOTH: OFF</button>
     </div>
 
     <div id="grid">
@@ -499,6 +545,16 @@ function html(imgSrc: string): string {
             case 'installBusy':
                 $('btnInstall').disabled = m.busy;
                 $('btnInstall').textContent = m.busy ? '⧖ INSTALLING…' : '⬇ INSTALL .FAP → SD';
+                break;
+            case 'bleBusy':
+                $('btnBle').disabled = m.busy;
+                if (m.busy) { $('btnBle').textContent = '⧖ BLUETOOTH…'; }
+                break;
+            case 'ble':
+                $('btnBle').textContent = m.connected
+                    ? 'ᗬ BLUETOOTH: ' + (m.name || 'ON') + ' ✕'
+                    : 'ᗬ BLUETOOTH: OFF';
+                $('btnBle').classList.toggle('on', m.connected);
                 break;
         }
     });

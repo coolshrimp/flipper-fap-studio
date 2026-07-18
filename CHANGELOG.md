@@ -4,6 +4,16 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.12.0] — 2026-07-18
+
+### Added — Bluetooth LE (experimental)
+- The dashboard's **ᗬ Bluetooth** button now actually connects: it scans for a device advertising as "Flipper …", opens the BLE serial service, and speaks the same protobuf RPC — our own implementation built from the Flipper's public GATT profile (serial service `8fe5b3d5…`, RX/TX/flow-control characteristics, firmware auto-opens RPC on connect)
+- While connected, the dashboard stats, library counts, and **Install .fap** all ride BLE instead of USB; the button turns green and shows the device name, click again to disconnect
+- Transport is the MIT-licensed `webbluetooth` package (SimpleBLE, ABI-stable N-API prebuilds for Windows/macOS/Linux — same mechanism as the bundled serialport module)
+- Pair the Flipper with your PC first (no default PIN — it shows a one-time 6-digit code); Live Screen and the file browser sidebar remain USB-only for now
+
+---
+
 ## [0.11.1] — 2026-07-18
 
 ### Changed
