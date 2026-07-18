@@ -104,9 +104,22 @@ export class DashboardPanel {
             if (flipperBle.isConnected()) {
                 await flipperBle.disconnect();
             } else {
+                const choose = async (candidates: Array<{ id: string; name: string }>) => {
+                    const items = candidates.map(c => ({
+                        label: c.name || '(unnamed device)',
+                        description: c.id,
+                        id: c.id,
+                    }));
+                    const pick = await vscode.window.showQuickPick(items, {
+                        title: 'Select your Flipper',
+                        placeHolder: 'Bluetooth devices found nearby — pick the Flipper (its name is set on the device)',
+                    });
+                    return pick?.id;
+                };
                 await vscode.window.withProgress(
-                    { location: vscode.ProgressLocation.Notification, title: 'Bluetooth: scanning for a Flipper… (pair it in Windows first — confirm the 6-digit code on its screen)' },
-                    () => flipperBle.connect());
+                    { location: vscode.ProgressLocation.Notification, title: 'Bluetooth: scanning… (make sure Bluetooth is ON on the Flipper and it is paired with this PC)' },
+                    () => flipperBle.connect(choose));
+                if (!flipperBle.isConnected()) { return; } // user cancelled the picker
                 void vscode.window.showInformationMessage(`Bluetooth connected — ${flipperBle.deviceName}. Dashboard now reads over BLE.`);
                 void this.load();
             }

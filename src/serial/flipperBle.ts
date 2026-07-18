@@ -57,8 +57,15 @@ export class FlipperBle {
         return this.device?.gatt?.connected === true;
     }
 
-    /** Scan for a device advertising as "Flipper …" and open the RPC link. */
-    async connect(): Promise<void> {
+    /**
+     * Scan for BLE devices and open the RPC link. Any name is accepted — the
+     * Flipper's adv name is its (renameable) device name, e.g. "Flip", so we
+     * auto-match anything flipper-ish and otherwise let `choose` pick from
+     * everything found.
+     */
+    async connect(
+        choose?: (candidates: Array<{ id: string; name: string }>) => Promise<string | undefined>
+    ): Promise<void> {
         if (this.isConnected() || this.connecting) { return; }
         this.connecting = true;
         try {
@@ -70,18 +77,61 @@ export class FlipperBle {
                     `Bluetooth library failed to load on this platform (${(err as Error).message}). ` +
                     'USB device tools are unaffected.');
             }
-            this.status('info', 'Scanning for a Flipper over Bluetooth…');
-            const bt = new webbluetooth.Bluetooth({ scanTime: 8 });
+
+            // ── pass 1: collect everything advertising nearby ────────────────
+            this.status('info', 'Scanning for Bluetooth devices…');
+            const found = new Map<string, { id: string; name: string }>();
+            const collector = new webbluetooth.Bluetooth({
+                scanTime: 6,
+                deviceFound: (device: any) => {
+                    found.set(device.id, { id: device.id, name: device.name || '' });
+                    return false; // keep scanning
+                },
+            });
+            await collector.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [SERIAL_SERVICE],
+            }).catch(() => undefined); // rejects when nothing was selected — expected
+
+            const candidates = [...found.values()];
+            if (candidates.length === 0) {
+                throw new Error(
+                    'No Bluetooth LE devices found at all. Check that this PC has a BLE-capable adapter and that ' +
+                    'Bluetooth is ON on the Flipper (Settings → Bluetooth).');
+            }
+
+            // ── pick the target: auto-match flipper-ish names, else ask ─────
+            const flipperish = candidates.filter(d => /flip/i.test(d.name));
+            let targetId: string | undefined;
+            if (flipperish.length === 1) {
+                targetId = flipperish[0].id;
+            } else if (choose) {
+                const sorted = [...flipperish, ...candidates.filter(d => !flipperish.includes(d))];
+                targetId = await choose(sorted);
+                if (!targetId) { return; } // user cancelled
+            } else if (flipperish.length > 1) {
+                targetId = flipperish[0].id;
+            } else {
+                throw new Error(
+                    `No device with a Flipper-like name found (saw: ${candidates.filter(d => d.name).map(d => d.name).join(', ') || 'unnamed devices only'}).`);
+            }
+            const targetName = found.get(targetId)?.name || 'Flipper';
+
+            // ── pass 2: scan again and select the chosen device ─────────────
+            this.status('info', `Connecting to ${targetName}…`);
+            const bt = new webbluetooth.Bluetooth({
+                scanTime: 8,
+                deviceFound: (device: any) => device.id === targetId,
+            });
             const device = await bt.requestDevice({
-                filters: [{ namePrefix: 'Flipper' }],
+                acceptAllDevices: true,
                 optionalServices: [SERIAL_SERVICE],
             }).catch((err: Error) => {
                 throw new Error(
-                    `No Flipper found over Bluetooth (${err.message}). ` +
-                    'Make sure Bluetooth is ON on the Flipper (Settings → Bluetooth) and it is paired with this PC ' +
-                    '(Windows Settings → Bluetooth → Add device — confirm the 6-digit code the Flipper shows).');
+                    `${targetName} stopped advertising before the connection could open (${err.message}). ` +
+                    'On the Flipper make sure Bluetooth is ON and it is not connected to the mobile app, then try again.');
             });
-            this.deviceName = device.name || 'Flipper';
+            this.deviceName = device.name || targetName;
             this.status('info', `Found ${this.deviceName} — connecting…`);
 
             device.addEventListener('gattserverdisconnected', () => this.onDisconnected());
