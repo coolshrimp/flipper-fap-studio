@@ -4,6 +4,7 @@
 src/**
 docs/**
 screenshots/**
+social/**
 out/**/*.map
 **/*.ts
 tsconfig.json
