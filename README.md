@@ -6,7 +6,7 @@
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
 No command line required — just buttons, status, and output logs.  
-Now with a **UI Designer** (design 128×64 screens visually, lopaka-style, and generate a complete buildable app), a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
+Now with a **UI Designer** (design 128×64 screens visually, lopaka-style, and generate a complete buildable app), a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), a **Device Dashboard** (battery, storage, firmware, and library stats at a glance), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
 
 ## Why I built this
 
@@ -73,6 +73,7 @@ The sidebar shows the current app and target at the top, one-click build actions
 | **Open Working Directory** | Opens `dist/` in Explorer (falls back to app root if dist doesn't exist yet) |
 | **Create starter app** | Creates a new folder with `application.fam` + working `main.c` boilerplate and opens it in the workspace |
 | **UI Designer** | Visual 128×64 screen editor — drag & drop elements/icons, multiple screens, generates `canvas_*` code or a whole app (see below) |
+| **Device Dashboard** | Live device stats over USB — battery, storage, firmware/hardware info, and library counts (see below) |
 | **Select firmware target** | QuickPick to choose OEM, RogueMaster, Momentum, Unleashed, or a custom SDK path |
 | **Guide** | Opens the step-by-step usage guide |
 | **Settings** | Opens the extension's settings panel (build output, new-app defaults, SDK paths) |
@@ -128,6 +129,18 @@ One panel, qFlipper-style: the live display mirror with controls on top, and the
 - If the COM port is held by another program, the panel says so — **COM BLOCKED** — and names the likely culprit (qFlipper, PuTTY, …) so you know what to close
 
 **Builds and the serial connection share the port automatically:** when you hit **Build + Launch**, the stream/log pauses just long enough for uFBT to push the `.fap` to the device, then reconnects and resumes on its own — no manual disconnecting.
+
+### Device Dashboard
+
+Click **Device Dashboard** in the sidebar for a one-page health check of the connected Flipper — handy before a long test session:
+
+- **Device card** — name, firmware version/branch/fork, hardware model and UID, plus an expandable **All Device Info** list with every key the firmware reports (great for bug reports)
+- **Battery** — charge % with bar, voltage, current draw, temperature, and health
+- **Storage** — SD card (`/ext`) and internal flash (`/int`) used/free/total with usage bars
+- **Library counts** — Sub-GHz, Infrared, NFC, RFID, BadUSB, and Apps, counted live from the SD card (recursive scan with sane caps, so huge libraries stay fast; counts fill in as they finish)
+- **↻ Refresh** re-reads everything; the dashboard borrows the RPC session only while loading, so it never holds the port
+
+All of it uses the same read-only RPC calls as the rest of the extension — nothing is written to the device.
 
 ### Flipper Files (on Device)
 
@@ -204,9 +217,11 @@ npx vsce package --allow-missing-repository
 ## Planned Features
 
 - [x] ~~Detect connected Flipper~~ — done in 0.8.0 (auto-detect + live screen, serial log, file browser)
+- [x] ~~Device Dashboard~~ — done in 0.11.0 (battery, storage, firmware, library stats)
 - [ ] Package Release ZIP (excludes secrets, confirms before packaging)
 - [ ] Multi-target batch build (OEM + all custom targets at once)
 - [ ] Install built `.fap` directly into `/ext/apps` from the file browser
+- [ ] BLE transport (device tools without the cable — dashboard/files/screen ride the same RPC layer, so they'd all get it at once)
 
 ---
 

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SerialPort } from 'serialport';
 import {
     encode, tryDecodeFrame, decodeScreenFrame, decodeListResponse, decodeReadResponse,
+    decodeKeyValue, decodeStorageInfo,
     MainContent, MainMessage, StorageFile, InputKey, InputType,
     COMMAND_STATUS_NAMES,
 } from './protobuf';
@@ -240,6 +241,46 @@ export class FlipperSerial {
 
     async rename(oldPath: string, newPath: string): Promise<void> {
         await this.withRpc(() => this.rpcRequest(id => [encode.storageRename(id, oldPath, newPath)]));
+    }
+
+    /** All device-info key/value pairs (hardware, firmware, radio…). */
+    async getDeviceInfo(): Promise<Record<string, string>> {
+        return this.withRpc(async () => {
+            const msgs = await this.rpcRequest(id => [encode.systemDeviceInfo(id)], 10000);
+            return this.collectKeyValues(msgs, MainContent.SYSTEM_DEVICE_INFO_RESPONSE);
+        });
+    }
+
+    /** All power-info key/value pairs (charge level, voltage, current, temp…). */
+    async getPowerInfo(): Promise<Record<string, string>> {
+        return this.withRpc(async () => {
+            const msgs = await this.rpcRequest(id => [encode.systemPowerInfo(id)], 10000);
+            return this.collectKeyValues(msgs, MainContent.SYSTEM_POWER_INFO_RESPONSE);
+        });
+    }
+
+    /** Total/free space of a filesystem (`/ext` or `/int`), in bytes. */
+    async getStorageInfo(path: string): Promise<{ totalSpace: number; freeSpace: number }> {
+        return this.withRpc(async () => {
+            const msgs = await this.rpcRequest(id => [encode.storageInfo(id, path)]);
+            for (const m of msgs) {
+                if (m.contentFieldNo === MainContent.STORAGE_INFO_RESPONSE) {
+                    return decodeStorageInfo(m.contentData);
+                }
+            }
+            throw new Error(`No storage info returned for ${path}`);
+        });
+    }
+
+    private collectKeyValues(msgs: MainMessage[], contentFieldNo: number): Record<string, string> {
+        const out: Record<string, string> = {};
+        for (const m of msgs) {
+            if (m.contentFieldNo === contentFieldNo) {
+                const { key, value } = decodeKeyValue(m.contentData);
+                if (key) { out[key] = value; }
+            }
+        }
+        return out;
     }
 
     /** Send a button event to the device (screen preview control). */

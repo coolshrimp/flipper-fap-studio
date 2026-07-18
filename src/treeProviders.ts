@@ -388,6 +388,12 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
                 md('**UI Designer**\n\nVisually design 128×64 screens (lopaka-style):\n- Drag & drop text, shapes, and icons\n- Multiple screens per app\n- Generates `canvas_*` draw code — copy it, insert at cursor, or **create a complete buildable app** from the design')
             ),
             new ButtonItem(
+                'Device Dashboard',
+                'flipperFapStudio.dashboard.open',
+                new vscode.ThemeIcon('dashboard', PURPLE),
+                md('**Device Dashboard**\n\nLive stats from the connected Flipper over USB:\n- Device name, firmware, hardware info\n- Battery charge, voltage, current, temperature\n- SD card + internal storage usage\n- Library counts (Sub-GHz, Infrared, NFC, RFID, BadUSB, Apps)')
+            ),
+            new ButtonItem(
                 'Select firmware target',
                 'flipperFapStudio.selectTarget',
                 new vscode.ThemeIcon('circuit-board', PURPLE),

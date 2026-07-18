@@ -14,6 +14,10 @@ export const enum MainContent {
     SYSTEM_PING_REQUEST = 5,
     SYSTEM_PING_RESPONSE = 6,
     SYSTEM_REBOOT_REQUEST = 31,
+    SYSTEM_DEVICE_INFO_REQUEST = 32,
+    SYSTEM_DEVICE_INFO_RESPONSE = 33,
+    SYSTEM_POWER_INFO_REQUEST = 44,
+    SYSTEM_POWER_INFO_RESPONSE = 45,
     STORAGE_INFO_REQUEST = 28,
     STORAGE_INFO_RESPONSE = 29,
     STORAGE_STAT_REQUEST = 24,
@@ -181,6 +185,18 @@ export const encode = {
         mainFrame(id, false, MainContent.SYSTEM_REBOOT_REQUEST,
             new Writer().uintAlways(1, mode).finish()),
 
+    /** Streams one DeviceInfoResponse key/value pair per frame (has_next). */
+    systemDeviceInfo: (id: number) =>
+        mainFrame(id, false, MainContent.SYSTEM_DEVICE_INFO_REQUEST, Buffer.alloc(0)),
+
+    /** Streams one PowerInfoResponse key/value pair per frame (has_next). */
+    systemPowerInfo: (id: number) =>
+        mainFrame(id, false, MainContent.SYSTEM_POWER_INFO_REQUEST, Buffer.alloc(0)),
+
+    storageInfo: (id: number, path: string) =>
+        mainFrame(id, false, MainContent.STORAGE_INFO_REQUEST,
+            new Writer().string(1, path).finish()),
+
     guiStartScreenStream: (id: number) =>
         mainFrame(id, false, MainContent.GUI_START_SCREEN_STREAM_REQUEST, Buffer.alloc(0)),
 
@@ -307,4 +323,22 @@ export function decodeListResponse(content: Buffer): StorageFile[] {
 export function decodeReadResponse(content: Buffer): StorageFile | null {
     const f = first(readFields(content), 1);
     return f ? decodeFile(f.data) : null;
+}
+
+/** DeviceInfoResponse / PowerInfoResponse — { key = 1, value = 2 } */
+export function decodeKeyValue(content: Buffer): { key: string; value: string } {
+    const fields = readFields(content);
+    return {
+        key: first(fields, 1)?.data.toString('utf8') ?? '',
+        value: first(fields, 2)?.data.toString('utf8') ?? '',
+    };
+}
+
+/** Storage InfoResponse — { total_space = 1, free_space = 2 } */
+export function decodeStorageInfo(content: Buffer): { totalSpace: number; freeSpace: number } {
+    const fields = readFields(content);
+    return {
+        totalSpace: first(fields, 1)?.value ?? 0,
+        freeSpace: first(fields, 2)?.value ?? 0,
+    };
 }

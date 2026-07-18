@@ -4,6 +4,18 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.11.0] — 2026-07-18
+
+### Added — Device Dashboard
+- One-page device health check over USB RPC: device name, firmware version/branch/fork, hardware model + UID, and an expandable "All Device Info" list
+- Battery card — charge % with bar, voltage, current draw, temperature, health
+- Storage cards — SD card (`/ext`) and internal flash (`/int`) used/free/total with usage bars
+- Library counts — Sub-GHz, Infrared, NFC, RFID, BadUSB, Apps (recursive SD scan with caps, fills in incrementally)
+- New `Device Dashboard` sidebar button + command; read-only — borrows the RPC session only while loading
+- Protocol: `SystemDeviceInfo`, `SystemPowerInfo`, and `StorageInfo` RPC messages added to the built-in protobuf codec
+
+---
+
 ## [0.10.1] — 2026-07-17
 
 ### Changed
