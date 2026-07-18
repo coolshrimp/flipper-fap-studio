@@ -55,6 +55,7 @@ export class DashboardPanel {
                     case 'bluetooth':
                         void vscode.window.showInformationMessage(
                             'Bluetooth (BLE) is planned but not available yet — device tools are USB-only for now. ' +
+                            'Tip: when pairing the Flipper over Bluetooth there is no default PIN — it shows a one-time 6-digit code on its screen to confirm. ' +
                             'The dashboard, file browser, and live screen all share one connection layer, so BLE will enable all of them at once when it lands.');
                         break;
                 }
@@ -299,7 +300,7 @@ function html(imgSrc: string): string {
     <div id="actions">
         <button class="btn" id="btnFiles" title="Open the on-device file browser in the sidebar">⬚ FILE MANAGER</button>
         <button class="btn" id="btnInstall" title="Copy the built .fap from dist/ to /ext/apps/<Category>/ on the SD card">⬇ INSTALL .FAP → SD</button>
-        <button class="btn" id="btnBle" title="BLE transport is planned — USB only for now">ᗬ BLUETOOTH</button>
+        <button class="btn" id="btnBle" title="BLE transport is planned — USB only for now. When pairing over Bluetooth (e.g. with your phone), there is no default PIN: the Flipper shows a one-time 6-digit pairing code on its screen — confirm it there.">ᛒ BLUETOOTH</button>
     </div>
 
     <div id="grid">
