@@ -14,6 +14,9 @@ const FLIPPER_VID = '0483';
 const FLIPPER_PID = '5740';
 const CLI_PROMPT = '>: ';
 const WRITE_CHUNK = 512;
+/** brief pause every N frames so the firmware can drain its RPC buffer to SD */
+const PACE_EVERY = 4;
+const PACE_MS = 5;
 
 export type SerialMode = 'disconnected' | 'cli' | 'logging' | 'rpc';
 
@@ -201,7 +204,7 @@ export class FlipperSerial {
     }
 
     async readFile(path: string): Promise<Buffer> {
-        return this.withRpc(async () => {
+        return this.withRpc(() => this.withoutStream(async () => {
             const msgs = await this.rpcRequest(id => [encode.storageRead(id, path)], 30000);
             const chunks: Buffer[] = [];
             for (const m of msgs) {
@@ -211,24 +214,34 @@ export class FlipperSerial {
                 }
             }
             return Buffer.concat(chunks);
-        });
+        }));
     }
 
     async writeFile(path: string, data: Buffer): Promise<void> {
-        await this.withRpc(async () => {
-            await this.rpcRequest(id => {
-                const frames: Buffer[] = [];
-                if (data.length === 0) {
-                    frames.push(encode.storageWrite(id, path, Buffer.alloc(0), false));
-                } else {
-                    for (let off = 0; off < data.length; off += WRITE_CHUNK) {
-                        const chunk = data.subarray(off, off + WRITE_CHUNK);
-                        frames.push(encode.storageWrite(id, path, chunk, off + WRITE_CHUNK < data.length));
+        await this.withRpc(() => this.withoutStream(async () => {
+            // The firmware answers a chunked write only once, after the final
+            // frame — so the timeout has to cover the whole transfer, not one
+            // round trip. ~23 KB/s on the wire plus SD-card write time.
+            const timeoutMs = Math.min(300000, 30000 + Math.ceil(data.length / 4));
+            try {
+                await this.rpcRequest(id => {
+                    const frames: Buffer[] = [];
+                    if (data.length === 0) {
+                        frames.push(encode.storageWrite(id, path, Buffer.alloc(0), false));
+                    } else {
+                        for (let off = 0; off < data.length; off += WRITE_CHUNK) {
+                            const chunk = data.subarray(off, off + WRITE_CHUNK);
+                            frames.push(encode.storageWrite(id, path, chunk, off + WRITE_CHUNK < data.length));
+                        }
                     }
-                }
-                return frames;
-            }, 30000);
-        });
+                    return frames;
+                }, timeoutMs, true);
+            } catch (err) {
+                // a half-finished write leaves the firmware's RPC parser mid-frame
+                await this.resyncRpc();
+                throw err;
+            }
+        }));
     }
 
     async deletePath(path: string, recursive: boolean): Promise<void> {
@@ -567,6 +580,59 @@ export class FlipperSerial {
         this.port.write(data);
     }
 
+    /** Write one buffer and wait until it has actually left the OS/driver queue. */
+    private writeDrained(data: Buffer): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            const port = this.port;
+            if (!port || !port.isOpen) { reject(new Error('Serial port is not open')); return; }
+            port.write(data, writeErr => {
+                if (writeErr) { reject(writeErr); return; }
+                port.drain(drainErr => drainErr ? reject(drainErr) : resolve());
+            });
+        });
+    }
+
+    /**
+     * Send frames one at a time, draining between each. Blasting a whole file
+     * at once overruns the Flipper's RPC receive buffer (it writes to SD far
+     * slower than USB delivers), which desyncs the protobuf stream and takes
+     * the session down mid-transfer.
+     */
+    private async sendPaced(frames: Buffer[]): Promise<void> {
+        for (let i = 0; i < frames.length; i++) {
+            if (this.mode !== 'rpc') { throw new Error('RPC session ended mid-transfer'); }
+            await this.writeDrained(frames[i]);
+            if (i % PACE_EVERY === PACE_EVERY - 1) { await delay(PACE_MS); }
+        }
+    }
+
+    /**
+     * Screen streaming shares the RPC channel; leaving it on during a transfer
+     * doubles the traffic and is a reliable way to overrun the device. Pause it
+     * for the duration and restore it afterwards.
+     */
+    private async withoutStream<T>(fn: () => Promise<T>): Promise<T> {
+        const wasStreaming = this.streaming;
+        if (wasStreaming) { await this.stopStream().catch(() => undefined); }
+        try {
+            return await fn();
+        } finally {
+            if (wasStreaming && this.mode === 'rpc' && !this.streaming && this.wantStream) {
+                await this.startStream().catch(() => undefined);
+            }
+        }
+    }
+
+    /** Bounce the RPC session to clear a desynced protobuf stream. */
+    private async resyncRpc(): Promise<void> {
+        if (this.mode !== 'rpc') { return; }
+        this.status('warn', 'Transfer failed — resyncing RPC session…');
+        try {
+            await this.exitRpc();
+            await this.enterRpc();
+        } catch { /* reconcile will pick up the pieces */ }
+    }
+
     private onData(data: Buffer) {
         if (this.mode === 'rpc') {
             this.rpcBuf = Buffer.concat([this.rpcBuf, data]);
@@ -660,23 +726,34 @@ export class FlipperSerial {
     }
 
     /** Send one request (possibly multi-frame) and await its full response. */
-    private rpcRequest(build: (id: number) => Buffer[], timeoutMs = 6000): Promise<MainMessage[]> {
+    private rpcRequest(
+        build: (id: number) => Buffer[],
+        timeoutMs = 6000,
+        paced = false,
+    ): Promise<MainMessage[]> {
         if (this.mode !== 'rpc') { return Promise.reject(new Error('Not in RPC mode')); }
         const id = this.allocId();
         const frames = build(id);
-        return new Promise<MainMessage[]>((resolve, reject) => {
+        const result = new Promise<MainMessage[]>((resolve, reject) => {
             this.pending.set(id, {
                 messages: [], resolve, reject, timeoutMs,
                 timer: this.makePendingTimer(id, timeoutMs),
             });
+        });
+        const fail = (err: Error) => {
+            const p = this.pending.get(id);
+            if (p) { clearTimeout(p.timer); this.pending.delete(id); p.reject(err); }
+        };
+        if (paced) {
+            this.sendPaced(frames).catch(err => fail(err as Error));
+        } else {
             try {
                 for (const f of frames) { this.write(f); }
             } catch (err) {
-                const p = this.pending.get(id);
-                if (p) { clearTimeout(p.timer); this.pending.delete(id); }
-                reject(err as Error);
+                fail(err as Error);
             }
-        });
+        }
+        return result;
     }
 
     /**

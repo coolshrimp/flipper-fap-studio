@@ -4,6 +4,16 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.12.2] — 2026-07-20
+
+### Fixed
+- Serial connection no longer drops during file transfers. Chunks were written to the port as fast as Node would take them, overrunning the Flipper's RPC receive buffer (USB delivers far faster than the firmware writes to SD) — that desynced the protobuf stream and killed the session mid-upload. Frames are now sent one at a time, draining the port between each, with a short pause every few frames
+- Screen streaming is paused for the duration of a transfer instead of competing for the same RPC channel
+- Chunked-write timeout now scales with file size — the firmware only replies after the *final* frame, so a large `.fap` could blow the fixed 30 s budget and report a timeout on a transfer that was still progressing normally
+- A failed transfer now resyncs the RPC session, so the next operation doesn't inherit a half-parsed frame
+
+---
+
 ## [0.12.1] — 2026-07-18
 
 ### Fixed
