@@ -175,7 +175,7 @@ function html(compact: boolean): string {
     :root {
         --orange: #ff8c1a;
         --orange-dim: #a35a12;
-        --screen-bg: #ff8b27;
+        --screen-bg: #fe8a2c;
     }
     * { box-sizing: border-box; user-select: none; }
     body {
@@ -366,14 +366,16 @@ function html(compact: boolean): string {
                 let dx = x, dy = y;
                 if (orientation === 1) { dx = 127 - x; dy = 63 - y; } // 180° flip
                 const o = (dy * 128 + dx) * 4;
-                if (bit) { img.data[o] = 0x1e; img.data[o+1] = 0x10; img.data[o+2] = 0x05; }
-                else     { img.data[o] = 0xff; img.data[o+1] = 0x8b; img.data[o+2] = 0x27; }
+                // #000000 on #FE8A2C — must match qFlipper's export palette exactly:
+                // the App Catalog rejects screenshots that aren't verbatim qFlipper output
+                if (bit) { img.data[o] = 0x00; img.data[o+1] = 0x00; img.data[o+2] = 0x00; }
+                else     { img.data[o] = 0xfe; img.data[o+1] = 0x8a; img.data[o+2] = 0x2c; }
                 img.data[o+3] = 255;
             }
         }
         ctx.putImageData(img, 0, 0);
     }
-    ctx.fillStyle = '#ff8b27'; ctx.fillRect(0, 0, 128, 64);
+    ctx.fillStyle = '#fe8a2c'; ctx.fillRect(0, 0, 128, 64);
 
     function b64ToBytes(b64) {
         const bin = atob(b64);

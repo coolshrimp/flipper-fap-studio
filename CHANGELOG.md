@@ -4,6 +4,13 @@ All notable changes to Flipper FAP Studio are documented here.
 
 ---
 
+## [0.12.3] — 2026-07-22
+
+### Fixed
+- Screenshots now save with qFlipper's exact palette — pure black `#000000` on `#FE8A2C` orange — instead of the stylized preview colors (`#1E1005` on `#FF8B27`). The Flipper App Catalog requires screenshots identical to a qFlipper export (512×256, exactly two colors), and PNGs saved with the old palette were flagged as recolored. The live screen mirror now uses the same authentic colors, so the preview matches what gets saved
+
+---
+
 ## [0.12.2] — 2026-07-20
 
 ### Fixed
