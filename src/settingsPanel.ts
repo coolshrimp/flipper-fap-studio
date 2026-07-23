@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { WEBVIEW_THEME } from './webviewTheme';
 import { StateManager } from './stateManager';
 
 interface SettingsData {
@@ -111,22 +112,23 @@ function getSettingsHtml(s: SettingsData): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Flipper FAP Studio — Settings</title>
 <style>
+  ${WEBVIEW_THEME}
   :root {
-    --purple:       #8b5cf6;
-    --purple-dark:  #7c3aed;
-    --purple-light: #a78bfa;
-    --purple-dim:   rgba(139,92,246,0.12);
-    --purple-border:rgba(139,92,246,0.35);
-    --bg:     var(--vscode-editor-background, #13111c);
-    --fg:     var(--vscode-editor-foreground, #d4d4d4);
-    --inp-bg: var(--vscode-input-background, #1e1b2e);
-    --inp-br: var(--vscode-input-border, #3c3553);
+    --purple:       var(--fap-accent);
+    --purple-dark:  var(--fap-accent-strong);
+    --purple-light: var(--fap-accent);
+    --purple-dim:   var(--fap-accent-soft);
+    --purple-border:var(--fap-accent-border);
+    --bg:     var(--fap-bg);
+    --fg:     var(--fap-text);
+    --inp-bg: var(--fap-surface-input);
+    --inp-br: var(--fap-line);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+    font-family: var(--fap-ui-font);
     font-size: 13px;
     line-height: 1.5;
     padding: 28px 32px 48px;
@@ -145,10 +147,10 @@ function getSettingsHtml(s: SettingsData): string {
     font-weight: 700;
     letter-spacing: -0.01em;
   }
-  .subtitle { color: #777; font-size: 12px; margin-bottom: 28px; }
+  .subtitle { color: var(--fap-muted); font-size: 12px; margin-bottom: 28px; }
   .section {
-    background: var(--purple-dim);
-    border: 1px solid var(--purple-border);
+    background: var(--fap-surface);
+    border: 1px solid var(--fap-line);
     border-radius: 10px;
     padding: 20px 22px;
     margin-bottom: 18px;
@@ -183,7 +185,7 @@ function getSettingsHtml(s: SettingsData): string {
     padding: 7px 10px;
     border-radius: 6px;
     font-size: 12px;
-    font-family: var(--vscode-editor-font-family, 'Consolas', monospace);
+    font-family: var(--fap-code-font);
     outline: none;
     transition: border-color 0.15s;
   }
@@ -202,7 +204,7 @@ function getSettingsHtml(s: SettingsData): string {
     font-family: inherit;
     flex-shrink: 0;
   }
-  .browse-btn:hover { background: rgba(139,92,246,0.28); border-color: var(--purple); }
+  .browse-btn:hover { background: var(--fap-accent-hover); border-color: var(--purple); }
   .browse-btn:active { transform: scale(0.97); }
   .toggle-row {
     display: flex;
@@ -245,7 +247,7 @@ function getSettingsHtml(s: SettingsData): string {
   .hint { color: #5a5a6a; font-size: 11px; margin-top: 5px; }
   .save-row { margin-top: 8px; }
   .save-btn {
-    background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+    background: linear-gradient(135deg, var(--fap-accent-strong), var(--fap-accent));
     border: none;
     color: #fff;
     padding: 10px 26px;
@@ -256,7 +258,7 @@ function getSettingsHtml(s: SettingsData): string {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 2px 12px rgba(139,92,246,0.35);
+    box-shadow: 0 2px 12px rgba(255,140,26,0.28);
     transition: opacity 0.15s, transform 0.1s;
     font-family: inherit;
   }
@@ -267,7 +269,7 @@ function getSettingsHtml(s: SettingsData): string {
 <body>
 
 <div class="header">
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
     <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
@@ -279,7 +281,7 @@ function getSettingsHtml(s: SettingsData): string {
 <!-- Build Output -->
 <div class="section">
   <div class="section-title">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
     </svg>
     Build Output
@@ -318,7 +320,7 @@ function getSettingsHtml(s: SettingsData): string {
 <!-- New App Defaults -->
 <div class="section">
   <div class="section-title">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
       <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
     </svg>
@@ -342,7 +344,7 @@ function getSettingsHtml(s: SettingsData): string {
 <!-- Firmware SDK Paths -->
 <div class="section">
   <div class="section-title">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="2" width="20" height="20" rx="3"/>
       <path d="M8 12h8M12 8v8"/>
     </svg>

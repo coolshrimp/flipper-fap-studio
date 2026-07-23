@@ -46,7 +46,13 @@ export function registerCommands(
         if (guardBuild()) { return; }
         const folder = requireFolder(state);
         if (!folder) { return; }
-        if (!(await validateAppFolder(folder))) { return; }
+        if (!buildState.reserve()) { return; }
+        refresh();
+        if (!(await validateAppFolder(folder))) {
+            buildState.end();
+            refresh();
+            return;
+        }
         state.touchRecentProject(folder);
 
         const targetPath = state.getTargetPath(state.getActiveTarget());
@@ -72,37 +78,45 @@ export function registerCommands(
 
     // ── Build + Launch ───────────────────────────────────────────────────────
     reg('flipperFapStudio.buildAndLaunch', async () => {
-        if (guardBuild()) { return; }
+        if (guardBuild()) { return false; }
         const folder = requireFolder(state);
-        if (!folder) { return; }
-        if (!(await validateAppFolder(folder))) { return; }
+        if (!folder) { return false; }
+        if (!buildState.reserve()) { return false; }
+        refresh();
+        if (!(await validateAppFolder(folder))) {
+            buildState.end();
+            refresh();
+            return false;
+        }
         state.touchRecentProject(folder);
 
         const targetPath = state.getTargetPath(state.getActiveTarget());
         refresh();
 
         const buildResult = await buildWithTarget(folder, targetPath, out, p => buildState.begin(p));
-        const elapsed = buildState.end();
-        refresh();
+        const elapsed = parseFloat(buildState.elapsedSeconds.toFixed(1));
 
         if (!buildResult.ok) {
+            buildState.end();
+            refresh();
             await showBuildError('Build failed — launch aborted', buildResult.log);
-            return;
+            return false;
         }
 
         await handleBuildOutput(folder, state);
 
         const launching = vscode.window.setStatusBarMessage('$(sync~spin) Launching on Flipper…');
-        buildState.begin({ kill: () => undefined } as never);
         refresh();
         // ufbt launch needs exclusive access to the COM port — pause our serial
         // session (log / screen stream) and restore it once the push completes
         const serialPause = await flipperSerial.suspendForExternal('pushing .fap to Flipper');
         let launchResult;
         try {
-            launchResult = await runUfbt(folder, ['launch'], out);
+            launchResult = await runUfbt(folder, ['launch'], out, p => buildState.begin(p));
         } finally {
-            await serialPause.resume();
+            void serialPause.resume().catch(error => {
+                out.appendLine(`\nSerial reconnect deferred: ${String(error)}`);
+            });
         }
         buildState.end();
         launching.dispose();
@@ -110,8 +124,10 @@ export function registerCommands(
 
         if (launchResult.ok) {
             vscode.window.showInformationMessage(`Built in ${elapsed}s — launched on Flipper.`);
+            return true;
         } else {
             await showBuildError('Launch failed', launchResult.log);
+            return false;
         }
     });
 
@@ -261,10 +277,10 @@ int32_t app_main(void* p) {
             });
             if (!folderResult) { return; }
             state.addCustomTarget(tName, folderResult[0].fsPath);
-            state.setActiveTarget(tName);
+            await state.setActiveTarget(tName);
             vscode.window.showInformationMessage(`Custom target added and selected: ${tName}`);
         } else {
-            state.setActiveTarget(picked.id);
+            await state.setActiveTarget(picked.id);
             vscode.window.showInformationMessage(`Target: ${picked.label.replace(/^\$\(\w+\) /, '')}`);
         }
 

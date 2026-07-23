@@ -1,0 +1,7 @@
+App(
+    appid="runtime_compat",
+    name="Desktop runtime compatibility fixture",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="runtime_compat_main",
+    fap_icon_assets="images",
+)

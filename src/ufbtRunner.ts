@@ -8,6 +8,11 @@ export interface RunResult {
     log: string;
 }
 
+export function completedLaunchBeforeRpcHandoff(log: string): boolean {
+    return /Launching app:\s*\/ext\/apps\//i.test(log) &&
+        /Unexpected response:\s*\S+/i.test(log);
+}
+
 export async function runUfbt(
     appFolder: string,
     args: string[],
@@ -34,7 +39,13 @@ export async function runUfbt(
         proc.stderr.on('data', (d: Buffer) => { collect(d); outputChannel.append(d.toString()); });
 
         proc.on('close', code => {
-            if (code === 0) {
+            const rpcHandoff = args.includes('launch') && completedLaunchBeforeRpcHandoff(log);
+            if (code === 0 || rpcHandoff) {
+                if (rpcHandoff) {
+                    outputChannel.appendLine(
+                        '\nApp launched; its custom serial protocol took over before uFBT closed RPC.'
+                    );
+                }
                 outputChannel.appendLine('\n✓ Done.');
                 resolve({ ok: true, log });
             } else {

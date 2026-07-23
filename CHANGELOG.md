@@ -2,6 +2,129 @@
 
 All notable changes to Flipper FAP Studio are documented here.
 
+## [0.13.6] — 2026-07-23
+
+### Added — Simulator button holds
+- Hold any on-screen D-pad, OK, or Back control for 550 ms to send a Flipper long-press event
+- Supports the same holds with keyboard controls, including Enter/Space for OK and Escape/Backspace for Back
+- Preserves one short press for quick taps and provides a visual pressed state during on-screen holds
+
+### Documentation
+- Added the new simulator screenshot and a step-by-step explanation of the STM32 firmware, virtual SD card, app bridge, input, display, sound, and persistence flow
+
+---
+
+## [0.13.5] — 2026-07-23
+
+### Fixed — Simulator restart loops
+- Auto-boots firmware only on the simulator panel's first render, preventing source or UI refreshes from starting duplicate sessions
+- Ignores duplicate Boot requests while either simulator engine is starting or running
+- Waits for the previous desktop app bridge process to fully exit before linking over its Windows executable, eliminating intermittent linker `Permission denied` failures
+
+---
+
+## [0.13.4] — 2026-07-23
+
+### Added — Simulator sound passthrough
+- Plays FAP speaker API tones and notification beeps through the PC using a low-volume Web Audio channel
+- Decodes the selected stock/CFW firmware's real TIM16 speaker PWM into matching PC tones
+- Adds a **Sound: On/Off** control and reliably silences both audio channels when their runtime stops
+
+---
+
+---
+
+## [0.13.3] — 2026-07-23
+
+### Added — Firmware preparation display
+- Shows the current firmware setup message and a determinate progress bar directly on the simulated 128 × 64 display while resources are expanded and the virtual SD image is built
+- Advances from initial target preparation through archive staging, FAT16 creation, and firmware startup, then hands the display to the first real STM32 framebuffer
+
+### Fixed
+- Locks simulator D-pad and keyboard input during firmware preparation so setup-time clicks cannot navigate the offline source preview or leak into firmware boot
+- Makes the firmware display the initial source for Boot Target, while keeping the app bridge available through the display-source toggle
+
+---
+
+## [0.13.2] — 2026-07-23
+
+### Added — Firmware-backed STM32 simulator sessions
+- Resolves the firmware selected as **Target** and boots OEM/custom STM32WB55 `full.bin` images with the local ARM emulator
+- Extracts packaged DfuSe `firmware.dfu` images, with validation of target addresses and image size
+- Finds the target's STM32WB55 SVD, falling back to the managed OEM uFBT SVD for update-only firmware packages
+- Builds and stages the active app under a persistent virtual `/ext/apps/<category>` SD-card tree
+- Shares that storage tree with the desktop Flipper API runtime so app menus, input, timers, assets, and saves remain functional while the selected firmware executes
+- Adds supervised firmware lifecycle/status logging and configurable emulator path/instruction limit
+- Boots through CFW service startup, models STM32WB USART/HSEM/RNG/synchronization behavior, and decodes the real ST7567 SPI page buffer into the simulator
+- Injects simulator D-pad actions through the firmware's real GPIO polarity and EXTI pending/interrupt paths so the raw firmware desktop/menu can be navigated
+- Discovers OEM, Momentum, RogueMaster, and Unleashed update resources and safely extracts TAR, gzip, and Heatshrink archives into target-wide persistent virtual SD storage
+- Builds a deterministic FAT16 card image with VFAT long names, emulates SPI2 card detection/read/write plus STM32WB DMA, and merges firmware-created saves back before later launches
+- Lets stock and custom firmware browse packaged application folders and launch compatible FAPs through the native firmware loader
+
+### Fixed — Firmware and app-runtime compatibility
+- Initializes Cortex-M MSP/PSP from the firmware reset vector and preserves the separate handler/task stacks across exceptions
+- Implements Momentum's Thumb `POP {..., PC}` exception-return form, preventing the `intr_hook intno=00000003` loop after CFW startup
+- Models the reserved word in floating-point exception frames and stops unrecoverable CPU faults once with register diagnostics instead of flooding the simulator log
+- Injects pending exceptions only at ARM translation boundaries, preventing long-running stock/CFW sessions from corrupting a task context while Unicorn finishes a translated block
+- Models RTC status/control semantics without manufacturing an alarm flag, so a phantom clock viewport no longer hides the desktop
+- Supplies a simulation-only result for the boot-time secure-enclave inventory when the absent wireless core would otherwise deadlock firmware before its desktop event loop
+- Holds early simulator button events until firmware has sampled the GPIO idle level and its desktop is ready, preventing the first navigation click from being discarded
+- Creates the desktop compiler workspace when a firmware session supplies shared virtual storage, fixing the missing `runtime_config.h` bridge failure
+- Keeps mixed UI/hardware entry-point sources in desktop builds and supplies inert USB CDC, semaphore, and STM32 I²C compatibility APIs so apps such as Xbox Postcode Reader can run their real menus safely
+- Keeps Build + Launch reserved as one atomic workflow through device hand-off, preventing double-clicked commands from starting two `ufbt launch` processes against the same COM port
+- Completes a successful physical launch without blocking on Live View/RPC reconnection; serial recovery continues in the background while the FAP is running
+- Recovers Momentum's non-returning first-task `SVC 0` sequence if early interrupt timing makes Unicorn fall through into the adjacent VTOR literal
+- Treats a confirmed `Launching app:` followed by custom serial output as a successful uFBT RPC handoff, rather than reporting a false launch failure after the FAP is already running
+- Latches and clears STM32WB EXTI pending bits for all six buttons, including the OK button's active-high polarity, so stock and custom-firmware menus receive real input callbacks
+- Preserves Thumb state between bounded emulator chunks, preventing long-running firmware sessions from failing with an invalid instruction after the first instruction budget
+- Adds the current `storage_common_mkdir` API and filesystem result types to the desktop bridge, allowing apps built against newer SDKs to compile and use persistent virtual storage
+- Adds the replacing `furi_string_printf` API used by apps such as FlipBoy, including safe formatting when the replacement references the string's existing value
+- Invalidates stopped firmware frames and keeps app/firmware input routing isolated, so a stale CFW screen cannot capture or leak input to the FAP bridge
+- Opens the real synchronized `/ext` directory instead of the SD-image parent, and waits for the firmware engine to exit before importing card changes
+- Non-destructively migrates files from the former per-app simulator storage folders into the new target-wide card so existing saves are not stranded
+
+---
+
+## [0.13.1] — 2026-07-22
+
+### Added — Functional desktop simulator runtime
+- Runs trusted Flipper app C source in a separate Windows process using its real entry point and input/menu logic
+- Starts Functional mode automatically when the simulator opens, using static preview only as a fallback
+- Streams live Canvas frames into the simulator and supports Furi queues, mutexes, strings, viewports, and common GUI helpers
+- Adds functional `View`, `ViewDispatcher`, `SceneManager`, Submenu, Widget, and Variable Item List compatibility so standard Flipper menu/scene apps execute their real navigation callbacks
+- Adds Furi event loops, loop timers, regular timers, event flags, queue/stream/mutex subscriptions, thread exit signals, and random APIs
+- Generates missing app `*_icons.h` headers from 1/2/4/8-bit PNG and ASCII/binary PBM `fap_icon_assets`, with visible placeholders and warnings for unresolved symbols
+- Redirects `/ext` and `/int` file APIs to persistent per-app virtual storage with a one-click folder shortcut
+- Keeps radio, NFC, IR, BLE, GPIO, and other hardware APIs stubbed; physical-device testing remains available for exact behavior
+
+### Changed — Unified application theme
+- UI Designer, Flipper Simulator, Device Dashboard, Live View, Guide, Settings, and Firmware SDK views now share one charcoal-and-Flipper-orange design system
+- Centralized surface, text, accent, status, typography, focus, scrollbar, radius, and shadow tokens prevent individual panels from drifting into unrelated color schemes
+- Sidebar tree accents now use the same orange family as the webviews
+
+### Fixed — Simulator text and screen composition
+- Device Dashboard detects firmware where `/int` is a virtual directory backed by the SD filesystem; it now reports the directory's content size and “shares SD” instead of duplicating `/ext` capacity as fake internal storage
+- Uses trimmed proportional glyph advances in the desktop renderer so text that fits the physical display no longer overflows as if every character were full-width
+- MP3 Player now launches in Functional mode: Windows-backed Furi threads, file position/EOF/error APIs, saved-struct persistence, power-status stubs, and a safe no-audio replacement for its STM32 DMA/GPIO backend are supplied
+- Draw callbacks now expand local Canvas helper functions with bounded parameter binding and loop unrolling, so callback-composed screens render instead of appearing as blank `Header`/`Row` pseudo-screens
+- `switch` cases that call helpers become the real selectable screens, with `default` shown first as **Main**
+- `canvas_draw_str_aligned` is rendered, constant string arrays are resolved, arithmetic coordinates are approximated safely, and runtime text uses visible placeholders instead of disappearing
+- Draw helpers, static string arrays, and numeric constants are resolved in their source file first, while bounded per-screen and whole-preview budgets prevent pathological source expansion
+- XBM coverage counts only arrays referenced by `canvas_draw_xbm`, keeps same-named arrays source-scoped (including helper arguments), and avoids false counts from unrelated codec lookup tables such as MP3 decoder tables
+
+---
+
+## [0.13.0] — 2026-07-22
+
+### Added — Flipper Simulator (experimental)
+- New **Flipper Simulator** sidebar action and Command Palette command open a dedicated VS Code popup
+- Safe offline source preview for literal Flipper `canvas_*` calls, XBM arrays, soft buttons, and multi-screen draw callbacks; app source is parsed but never executed
+- Automatic source reload, D-pad/keyboard screen controls, and 512×256 qFlipper-palette screenshot export
+- OEM and local custom-firmware target profiles share the extension's existing build pipeline
+- Built or manually selected `.fap` files are checked for the expected little-endian ARM ELF32 header; runtime/API compatibility is deliberately not claimed
+- **Build + Run on Physical Flipper** provides the device-accurate path and opens the live screen mirror
+- Offline scope is reported directly in the UI: firmware CPU/peripherals, dynamic app logic, firmware-owned icons, and hardware APIs are not emulated
+
 ---
 
 ## [0.12.3] — 2026-07-22

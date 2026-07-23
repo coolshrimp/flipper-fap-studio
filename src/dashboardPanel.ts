@@ -4,6 +4,12 @@ import * as fs from 'fs';
 import { flipperSerial, FileType } from './serial/flipperSerial';
 import { flipperBle } from './serial/flipperBle';
 import { StateManager } from './stateManager';
+import { WEBVIEW_GRID_BACKGROUND, WEBVIEW_THEME } from './webviewTheme';
+import {
+    reconcileStorageVolumes,
+    storageVolumesShareFilesystem,
+    StorageVolumeInfo,
+} from './storageVolumes';
 
 /**
  * "Device Dashboard" editor tab — device / firmware / battery / storage stats
@@ -82,8 +88,8 @@ export class DashboardPanel {
     private get link(): {
         getDeviceInfo(): Promise<Record<string, string>>;
         getPowerInfo(): Promise<Record<string, string>>;
-        getStorageInfo(p: string): Promise<{ totalSpace: number; freeSpace: number }>;
-        listDir(p: string): Promise<Array<{ type: number; name: string }>>;
+        getStorageInfo(p: string): Promise<StorageVolumeInfo>;
+        listDir(p: string): Promise<Array<{ type: number; name: string; size?: number }>>;
         writeFile(p: string, d: Buffer): Promise<void>;
         mkdir(p: string): Promise<void>;
     } {
@@ -156,11 +162,18 @@ export class DashboardPanel {
         }
 
         // ── storage ───────────────────────────────────────────────────────────
-        const ext = await flipperSerial.getStorageInfo('/ext').catch(() => null);
+        const storageLink = this.link;
+        const ext = await storageLink.getStorageInfo('/ext').catch(() => null);
         if (!live()) { return; }
-        const int_ = await flipperSerial.getStorageInfo('/int').catch(() => null);
+        const rawInt = await storageLink.getStorageInfo('/int').catch(() => null);
         if (!live()) { return; }
-        this.post({ type: 'storage', ext, int: int_ });
+        let internalContent: { bytes: number; complete: boolean } | undefined;
+        if (storageVolumesShareFilesystem(ext, rawInt)) {
+            internalContent = await this.measureDirectoryBytes('/int', storageLink, live).catch(() => undefined);
+            if (!live()) { return; }
+        }
+        const volumes = reconcileStorageVolumes(ext, rawInt, internalContent);
+        this.post({ type: 'storage', ...volumes });
 
         // ── library counts (incremental — big libraries take a few seconds) ──
         const libs: Array<{ id: string; path: string }> = [
@@ -206,6 +219,43 @@ export class DashboardPanel {
             }
         }
         return count;
+    }
+
+    /** Sum virtual /int contents without mistaking the shared SD capacity for internal flash. */
+    private async measureDirectoryBytes(
+        root: string,
+        link: {
+            listDir(p: string): Promise<Array<{ type: number; name: string; size?: number }>>;
+        },
+        live: () => boolean,
+    ): Promise<{ bytes: number; complete: boolean }> {
+        const MAX_DIRS = 500;
+        const MAX_DEPTH = 12;
+        let bytes = 0;
+        let dirsVisited = 0;
+        let complete = true;
+        const queue: Array<{ p: string; depth: number }> = [{ p: root, depth: 0 }];
+        while (queue.length > 0) {
+            if (!live()) { throw new Error('cancelled'); }
+            const { p, depth } = queue.shift()!;
+            if (++dirsVisited > MAX_DIRS) {
+                complete = false;
+                break;
+            }
+            const entries = await link.listDir(p);
+            for (const entry of entries) {
+                if (entry.type === FileType.DIR) {
+                    if (depth < MAX_DEPTH) {
+                        queue.push({ p: `${p}/${entry.name}`, depth: depth + 1 });
+                    } else {
+                        complete = false;
+                    }
+                } else {
+                    bytes += Math.max(0, entry.size ?? 0);
+                }
+            }
+        }
+        return { bytes, complete };
     }
 
     /** Pick a .fap (defaulting to the app's dist/), pick a category, upload to /ext/apps/… */
@@ -304,56 +354,54 @@ function html(imgSrc: string): string {
 <head>
 <meta charset="UTF-8">
 <style>
-    :root { --orange: #ff8c1a; --orange-dim: #a35a12; --fg-soft: #bdb4a8; }
+    ${WEBVIEW_THEME}
+    :root { --orange: var(--fap-accent); --orange-dim: var(--fap-accent-border); --fg-soft: var(--fap-muted); }
     * { box-sizing: border-box; }
     body {
         margin: 0; padding: 16px;
-        background:
-            linear-gradient(rgba(255,140,26,.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,140,26,.05) 1px, transparent 1px),
-            #100d0a;
-        background-size: 22px 22px;
-        color: var(--orange);
-        font-family: 'Consolas', 'Courier New', monospace;
+        background: ${WEBVIEW_GRID_BACKGROUND};
+        background-size: 36px 36px, 36px 36px, auto, auto;
+        color: var(--fap-text);
+        font-family: var(--fap-ui-font);
         display: flex; flex-direction: column; align-items: center; gap: 12px;
     }
     #wrap { width: 100%; max-width: 980px; display: flex; flex-direction: column; gap: 12px; }
     #topbar { display: flex; align-items: center; justify-content: space-between; font-size: 12px; letter-spacing: 1px; }
     #statusDot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #666; margin-right: 6px; }
-    #statusDot.on { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-    #statusDot.err { background: #f14c4c; box-shadow: 0 0 6px #f14c4c; }
+    #statusDot.on { background: var(--fap-good); box-shadow: 0 0 6px var(--fap-good); }
+    #statusDot.err { background: var(--fap-danger); box-shadow: 0 0 6px var(--fap-danger); }
     .btn {
         background: none; cursor: pointer;
-        border: 2px solid var(--orange); border-radius: 6px;
-        color: var(--orange); padding: 5px 12px;
+        border: 1px solid var(--fap-line); border-radius: 7px;
+        background: var(--fap-surface-raised); color: var(--fap-text); padding: 6px 12px;
         font-family: inherit; font-size: 11px; letter-spacing: 1px;
     }
-    .btn:hover { background: rgba(255,140,26,.15); }
+    .btn:hover { background: var(--fap-accent-soft); border-color: var(--orange); }
     .btn:disabled { opacity: .4; cursor: default; }
-    .btn.on { background: rgba(63,185,80,.15); border-color: #3fb950; color: #3fb950; }
+    .btn.on { background: rgba(66,211,146,.15); border-color: var(--fap-good); color: var(--fap-good); }
     #errorBox {
-        display: none; border: 2px solid #f14c4c; border-radius: 8px;
-        color: #f14c4c; padding: 10px 14px; font-size: 12px; line-height: 1.5;
+        display: none; border: 1px solid var(--fap-danger); border-radius: 8px;
+        color: var(--fap-danger); padding: 10px 14px; font-size: 12px; line-height: 1.5;
         white-space: pre-wrap; word-break: break-word;
     }
     #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
     .card {
-        border: 2px solid var(--orange-dim); border-radius: 10px;
-        background: rgba(0,0,0,.45); padding: 12px 14px;
+        border: 1px solid var(--fap-line); border-radius: 10px;
+        background: rgba(17,21,27,.94); padding: 12px 14px;
         display: flex; flex-direction: column; gap: 8px; min-height: 120px;
     }
     .card h2 {
         margin: 0; font-size: 11px; letter-spacing: 2px; font-weight: normal;
         color: var(--orange); border-bottom: 1px solid rgba(255,140,26,.25); padding-bottom: 6px;
     }
-    .big { font-size: 30px; line-height: 1; color: #ffd9ad; }
+    .big { font-size: 30px; line-height: 1; color: var(--fap-text); }
     .big small { font-size: 14px; color: var(--orange); }
     .bar { height: 8px; border: 1px solid var(--orange-dim); border-radius: 4px; overflow: hidden; background: #000; }
     .bar > i { display: block; height: 100%; background: var(--orange); width: 0%; transition: width .4s; }
     .bar.low > i { background: #f14c4c; }
     .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; font-size: 11.5px; }
     .kv b { font-weight: normal; color: var(--fg-soft); letter-spacing: .5px; }
-    .kv span { color: #ffd9ad; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv span { color: var(--fap-text); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #devImg {
         width: 100%; max-width: 240px; align-self: center;
         filter: drop-shadow(0 0 10px rgba(255,140,26,.25));
@@ -363,14 +411,14 @@ function html(imgSrc: string): string {
         display: flex; justify-content: space-between; align-items: baseline;
         font-size: 11px; letter-spacing: 1.5px; color: var(--fg-soft); margin-top: 4px;
     }
-    .stHead span { color: #ffd9ad; font-size: 14px; }
+    .stHead span { color: var(--fap-text); font-size: 14px; }
     #libs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
     .lib {
         border: 2px solid var(--orange-dim); border-radius: 10px; background: rgba(0,0,0,.45);
         padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
     }
     .lib b { font-size: 10px; letter-spacing: 1.5px; color: var(--fg-soft); font-weight: normal; }
-    .lib span { font-size: 22px; color: #ffd9ad; }
+    .lib span { font-size: 22px; color: var(--fap-text); }
     .lib span.pending { color: var(--orange-dim); font-size: 13px; }
     details { font-size: 11px; }
     summary { cursor: pointer; letter-spacing: 1px; color: var(--orange-dim); }
@@ -468,6 +516,19 @@ function html(imgSrc: string): string {
     }
 
     function storageCard(prefix, info) {
+        const bar = $(prefix + 'Bar');
+        bar.classList.remove('low');
+        bar.firstElementChild.style.width = '0%';
+        if (info && info.sharedWithExt) {
+            $(prefix + 'Pct').textContent = 'shares SD';
+            kvRows($(prefix + 'Rows'), [
+                ['CONTENT', info.contentBytes === undefined ? 'not measured' :
+                    (info.contentComplete === false ? '≥ ' : '') + fmtBytes(info.contentBytes)],
+                ['TYPE', 'virtual directory'],
+                ['CAPACITY', 'shared with /ext'],
+            ]);
+            return;
+        }
         if (!info || !info.totalSpace) {
             $(prefix + 'Pct').textContent = 'not available';
             $(prefix + 'Rows').innerHTML = '';
@@ -476,7 +537,6 @@ function html(imgSrc: string): string {
         const used = info.totalSpace - info.freeSpace;
         const pct = Math.round(used / info.totalSpace * 100);
         $(prefix + 'Pct').textContent = pct + '% used';
-        const bar = $(prefix + 'Bar');
         bar.classList.toggle('low', pct >= 90);
         bar.firstElementChild.style.width = pct + '%';
         kvRows($(prefix + 'Rows'), [

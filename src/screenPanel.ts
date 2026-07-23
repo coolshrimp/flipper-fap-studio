@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import { flipperSerial, InputKey, InputType } from './serial/flipperSerial';
+import { WEBVIEW_GRID_BACKGROUND, WEBVIEW_THEME } from './webviewTheme';
 
 const KEY_MAP: Record<string, InputKey> = {
     up: InputKey.UP, down: InputKey.DOWN, left: InputKey.LEFT,
@@ -172,21 +173,19 @@ function html(compact: boolean): string {
 <head>
 <meta charset="UTF-8">
 <style>
+    ${WEBVIEW_THEME}
     :root {
-        --orange: #ff8c1a;
-        --orange-dim: #a35a12;
-        --screen-bg: #fe8a2c;
+        --orange: var(--fap-accent);
+        --orange-dim: var(--fap-accent-border);
+        --screen-bg: var(--fap-screen);
     }
     * { box-sizing: border-box; user-select: none; }
     body {
         margin: 0; padding: ${compact ? '8px' : '14px'};
-        background:
-            linear-gradient(rgba(255,140,26,.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,140,26,.05) 1px, transparent 1px),
-            #100d0a;
-        background-size: 22px 22px;
-        color: var(--orange);
-        font-family: 'Consolas', 'Courier New', monospace;
+        background: ${WEBVIEW_GRID_BACKGROUND};
+        background-size: 36px 36px, 36px 36px, auto, auto;
+        color: var(--fap-text);
+        font-family: var(--fap-ui-font);
         display: flex; flex-direction: column; align-items: center; gap: ${compact ? '8px' : '12px'};
         min-height: ${compact ? 'auto' : '100vh'};
     }
@@ -196,9 +195,9 @@ function html(compact: boolean): string {
         font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     #statusDot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #666; margin-right: 6px; }
-    #statusDot.on { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-    #statusDot.warn { background: #d29922; box-shadow: 0 0 6px #d29922; }
-    #statusDot.err { background: #f14c4c; box-shadow: 0 0 6px #f14c4c; }
+    #statusDot.on { background: var(--fap-good); box-shadow: 0 0 6px var(--fap-good); }
+    #statusDot.warn { background: var(--fap-warn); box-shadow: 0 0 6px var(--fap-warn); }
+    #statusDot.err { background: var(--fap-danger); box-shadow: 0 0 6px var(--fap-danger); }
     #main {
         width: 100%;
         display: flex; gap: ${compact ? '14px' : '26px'};
@@ -226,15 +225,15 @@ function html(compact: boolean): string {
     #actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
     .btn {
         background: none; cursor: pointer;
-        border: 2px solid var(--orange); border-radius: 6px;
-        color: var(--orange); padding: ${compact ? '5px 10px' : '7px 14px'};
+        border: 1px solid var(--fap-line); border-radius: 7px;
+        background: var(--fap-surface-raised); color: var(--fap-text); padding: ${compact ? '5px 10px' : '7px 14px'};
         font-family: inherit; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
-    .btn:hover { background: rgba(255,140,26,.15); }
+    .btn:hover { background: var(--fap-accent-soft); border-color: var(--orange); }
     .btn:disabled { opacity: .4; cursor: default; }
-    .btn.danger { border-color: #f14c4c; color: #f14c4c; }
+    .btn.danger { border-color: var(--fap-danger); color: var(--fap-danger); }
     .btn.danger:hover { background: rgba(241,76,76,.15); }
-    .btn.danger.confirm { background: #f14c4c; color: #100d0a; }
+    .btn.danger.confirm { background: var(--fap-danger); color: var(--fap-bg); }
     /* ── controls: back button sits right of the D-pad, bottoms aligned ── */
     #controls { display: flex; flex-direction: row; align-items: flex-end; gap: ${compact ? '10px' : '16px'}; }
     #dpad {
@@ -251,14 +250,14 @@ function html(compact: boolean): string {
         padding: ${compact ? '5px' : '8px'}; border-radius: 8px;
     }
     .pad:hover { background: rgba(255,140,26,.12); }
-    .pad:active, .pad.active { background: rgba(255,140,26,.3); color: #ffd9ad; }
+    .pad:active, .pad.active { background: rgba(255,140,26,.3); color: var(--fap-text); }
     #btnOk {
         width: ${compact ? '42px' : '54px'}; height: ${compact ? '42px' : '54px'}; border-radius: 50%;
         border: 3px solid var(--orange); background: rgba(255,140,26,.15);
         font-size: ${compact ? '10px' : '11px'}; letter-spacing: 1px; color: var(--orange); cursor: pointer;
     }
     #btnOk:hover { background: rgba(255,140,26,.3); }
-    #btnOk:active, #btnOk.active { background: var(--orange); color: #100d0a; }
+    #btnOk:active, #btnOk.active { background: var(--orange); color: var(--fap-bg); }
     #btnBack {
         width: ${compact ? '36px' : '44px'}; height: ${compact ? '36px' : '44px'}; border-radius: 50%;
         border: 3px solid var(--orange-dim); background: none;
@@ -278,7 +277,7 @@ function html(compact: boolean): string {
         padding: 3px 8px; font-size: ${compact ? '10px' : '12px'}; letter-spacing: 1px;
     }
     #logsToggle { cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    #logsToggle:hover { color: #ffd9ad; }
+    #logsToggle:hover { color: var(--fap-text); }
     #statusLine { flex: 1; opacity: .9; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
     .logbtn {
         background: none; cursor: pointer;

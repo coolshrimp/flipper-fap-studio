@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { StateManager } from './stateManager';
+import { WEBVIEW_GRID_BACKGROUND, WEBVIEW_THEME } from './webviewTheme';
 
 const STATE_KEY = 'uiDesigner.design';
 const PANELS_KEY = 'uiDesigner.panels';
@@ -162,54 +163,52 @@ function html(): string {
 <head>
 <meta charset="UTF-8">
 <style>
+    ${WEBVIEW_THEME}
     :root {
-        --orange: #ff8c1a;
-        --orange-dim: #a35a12;
-        --bg: #100d0a;
-        --panel: #191410;
-        --sel: #58a6ff;
+        --orange: var(--fap-accent);
+        --orange-dim: var(--fap-accent-border);
+        --bg: var(--fap-bg);
+        --panel: var(--fap-surface);
+        --sel: var(--fap-link);
     }
     * { box-sizing: border-box; }
     body {
         margin: 0; padding: 10px;
-        background:
-            linear-gradient(rgba(255,140,26,.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,140,26,.04) 1px, transparent 1px),
-            var(--bg);
-        background-size: 22px 22px;
-        color: var(--orange);
-        font-family: 'Consolas', 'Courier New', monospace;
+        background: ${WEBVIEW_GRID_BACKGROUND};
+        background-size: 36px 36px, 36px 36px, auto, auto;
+        color: var(--fap-text);
+        font-family: var(--fap-ui-font);
         font-size: 12px;
         user-select: none;
     }
     input, select, textarea, button { font-family: inherit; }
     input[type=text], input[type=number], select, textarea {
-        background: #000; color: var(--orange);
+        background: var(--fap-surface-input); color: var(--fap-text);
         border: 1px solid var(--orange-dim); border-radius: 4px;
         padding: 3px 6px; font-size: 11px;
     }
     input[type=number] { width: 52px; }
     button {
-        background: none; border: 2px solid var(--orange); border-radius: 6px;
-        color: var(--orange); padding: 4px 10px; cursor: pointer;
+        background: var(--fap-surface-raised); border: 1px solid var(--fap-line); border-radius: 6px;
+        color: var(--fap-text); padding: 5px 10px; cursor: pointer;
         font-size: 11px; letter-spacing: .5px;
     }
-    button:hover { background: rgba(255,140,26,.15); }
+    button:hover { background: var(--fap-accent-soft); border-color: var(--orange); }
     button.small { border-width: 1px; padding: 2px 7px; font-size: 10px; border-color: var(--orange-dim); }
-    button.active { background: var(--orange); color: #100d0a; }
+    button.active { background: var(--orange); color: var(--fap-bg); }
     .panel {
         background: var(--panel);
-        border: 2px solid var(--orange-dim); border-radius: 8px;
+        border: 1px solid var(--fap-line); border-radius: var(--fap-radius);
         padding: 8px;
     }
     .panel h3 {
         margin: 0 0 6px; font-size: 10px; letter-spacing: 1px;
-        color: var(--orange-dim); text-transform: uppercase;
+        color: var(--orange); text-transform: uppercase;
         cursor: grab;
     }
     .panel h3:hover { color: var(--orange); }
     .panel.dragging { opacity: .5; }
-    .toolBtn.active { background: var(--orange); color: #100d0a; }
+    .toolBtn.active { background: var(--orange); color: var(--fap-bg); }
     #imgBox { display: none; }
     #imgBox.open { display: block; }
     #imgPrev { image-rendering: pixelated; }
@@ -220,7 +219,7 @@ function html(): string {
         border: 1px solid var(--orange-dim); border-radius: 5px 5px 0 0;
         padding: 3px 10px; cursor: pointer; font-size: 11px;
     }
-    .tab.cur { background: var(--orange); color: #100d0a; }
+    .tab.cur { background: var(--orange); color: var(--fap-bg); }
     #layout { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
     #palette { width: 168px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; }
     .palBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { WEBVIEW_THEME } from './webviewTheme';
 import * as cp from 'child_process';
 import * as https from 'https';
 import { StateManager } from './stateManager';
@@ -372,22 +373,23 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
+  ${WEBVIEW_THEME}
   :root {
-    --purple:       #8b5cf6;
-    --purple-light: #a78bfa;
-    --purple-dim:   rgba(139,92,246,0.12);
-    --purple-border:rgba(139,92,246,0.28);
-    --green:  #4ade80;
-    --yellow: #fbbf24;
-    --orange: #fb923c;
-    --bg: var(--vscode-sideBar-background, #1e1e2e);
-    --fg: var(--vscode-foreground, #cdd6f4);
+    --purple:       var(--fap-accent);
+    --purple-light: var(--fap-accent);
+    --purple-dim:   var(--fap-accent-soft);
+    --purple-border:var(--fap-accent-border);
+    --green:  var(--fap-good);
+    --yellow: var(--fap-warn);
+    --orange: var(--fap-accent-strong);
+    --bg: var(--fap-bg);
+    --fg: var(--fap-text);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+    font-family: var(--fap-ui-font);
     font-size: 11px;
   }
 
@@ -397,7 +399,7 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
     gap: 7px;
     padding: 9px 12px 8px;
     border-bottom: 1px solid var(--purple-border);
-    background: linear-gradient(135deg, rgba(109,40,217,0.18), rgba(139,92,246,0.08));
+    background: linear-gradient(135deg, rgba(255,140,26,0.16), rgba(255,140,26,0.05));
   }
   .header-title {
     font-size: 10px;
@@ -414,7 +416,7 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
     justify-content: space-between;
     gap: 8px;
     padding: 7px 8px 7px 12px;
-    border-bottom: 1px solid rgba(139,92,246,0.1);
+    border-bottom: 1px solid var(--fap-line);
     transition: background 0.12s;
   }
   .fw-row:last-child { border-bottom: none; }
@@ -465,7 +467,7 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
     border-color: var(--purple-border); color: var(--purple-light);
     padding: 3px 8px; font-weight: 600;
   }
-  .btn-action:hover { background: rgba(139,92,246,0.22); }
+  .btn-action:hover { background: var(--fap-accent-hover); }
 
   .btn-update {
     border-color: rgba(251,146,60,0.5); color: var(--orange);
@@ -475,12 +477,12 @@ function getHtml(entries: FwEntry[], ufbt: UfbtVersions): string {
   .btn-web {
     border-color: var(--purple-border); color: var(--purple-light); padding: 3px 7px;
   }
-  .btn-web:hover { background: rgba(139,92,246,0.22); }
+  .btn-web:hover { background: var(--fap-accent-hover); }
 </style>
 </head>
 <body>
 <div class="header">
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="3"/><path d="M8 12h8M12 8v8"/>
   </svg>
   <span class="header-title">Firmware SDKs</span>

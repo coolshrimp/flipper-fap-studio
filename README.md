@@ -5,7 +5,7 @@
 
 A GUI-first VS Code extension for building Flipper Zero `.fap` apps with uFBT.  
 No command line required — just buttons, status, and output logs.  
-Now with a **UI Designer** (design 128×64 screens visually, lopaka-style, and generate a complete buildable app), a **live screen mirror + device log** panel (control your Flipper from VS Code, qFlipper-style — with screenshots and a serial reset button), a **Device Dashboard** (battery, storage, firmware, and library stats at a glance), an **on-device file browser**, and **verified firmware SDKs** with latest-release checks — all over the same USB cable you build with.
+Now with a **UI Designer** (design 128×64 screens visually, lopaka-style, and generate a complete buildable app), an experimental **Flipper Simulator** (safe offline Canvas preview plus an exact connected-device path), a **live screen mirror + device log** panel, a **Device Dashboard**, an **on-device file browser**, and **verified firmware SDKs** with latest-release checks.
 
 ## Why I built this
 
@@ -40,9 +40,10 @@ Source code: [github.com/coolshrimp/flipper-fap-studio](https://github.com/cools
 
 1. Click the Flipper icon in the Activity Bar
 2. Click **Create starter app** — give it a name, choose a parent folder
-3. Click **Build .fap**
-4. Plug in your Flipper Zero, click **Build + Launch on Flipper**
-5. Expand **Live Screen + Log** in the sidebar to watch the app run, drive it with your keyboard, and stream device logs
+3. Click **Flipper Simulator** for a static preview or a functional desktop run of the app's menus and storage
+4. Click **Build .fap**
+5. Plug in your Flipper Zero, click **Build + Launch on Flipper**
+6. Expand **Live Screen + Log** in the sidebar to watch the real app run, drive it with your keyboard, and stream device logs
 
 ---
 
@@ -71,6 +72,7 @@ The sidebar shows the current app and target at the top, one-click build actions
 | **Open Working Directory** | Opens `dist/` in Explorer (falls back to app root if dist doesn't exist yet) |
 | **Create starter app** | Creates a new folder with `application.fam` + working `main.c` boilerplate and opens it in the workspace |
 | **UI Designer** | Visual 128×64 screen editor — drag & drop elements/icons, multiple screens, generates `canvas_*` code or a whole app (see below) |
+| **Flipper Simulator** | Experimental popup with safe static previews, a functional desktop C runtime, virtual storage, target-aware builds, screenshots, and exact testing on a connected Flipper (see below) |
 | **Device Dashboard** | Live device stats over USB — battery, storage, firmware/hardware info, and library counts (see below) |
 | **Select firmware target** | QuickPick to choose OEM, RogueMaster, Momentum, Unleashed, or a custom SDK path |
 | **Guide** | Opens the step-by-step usage guide |
@@ -108,6 +110,57 @@ A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](http
 - Designs autosave, and **Export/Import JSON** lets you keep them with your project
 
 *Text preview uses a close 5×7 approximation — exact pixel metrics can differ slightly on device fonts.*
+
+---
+
+## Flipper Simulator (experimental)
+
+Click **Flipper Simulator** in the sidebar to boot the firmware selected as **Target** and run the active app in a dedicated VS Code popup. Firmware and trusted app code execute in separate child processes; neither executes inside the VS Code extension host.
+
+![Flipper Simulator running a custom-firmware app menu](screenshots/ScreenshotSimulator.png)
+
+### How the STM32 emulator works
+
+1. **Prepare the target.** The extension locates the selected OEM or custom firmware image and its STM32WB55 SVD hardware description, then safely expands any packaged update resources.
+2. **Build the virtual Flipper.** It compiles the active app, installs the `.fap` into a persistent virtual `/ext` tree, and turns that tree into the FAT16 SD-card image seen by the firmware.
+3. **Boot real firmware instructions.** The bundled ARM engine starts at the firmware reset vector and models the Cortex-M exception path plus the STM32 peripherals needed for boot, display, buttons, storage, timing, and sound.
+4. **Connect the simulator controls.** ST7567 display traffic becomes the 128×64 panel, D-pad actions become GPIO/EXTI events, SPI2 reads and writes reach the virtual SD card, and speaker PWM becomes capped PC audio.
+5. **Run supported app behavior.** A separate compatibility process runs the app's trusted C entry point and supported Furi/GUI APIs against the same display, input, and storage services.
+6. **Keep test data.** When the session stops, SD-card writes are merged back into virtual storage so app saves and test files remain available for the next run.
+
+This is a practical firmware-and-app development model, not a complete electrical replica. Radio, NFC, infrared output, Bluetooth/wireless-core behavior, raw internal flash, and physical GPIO still require a real Flipper Zero.
+
+- **Run Selected App** builds the app when necessary, finds the selected Target's `full.bin`/`firmware.bin` or extracts its DfuSe `firmware.dfu`, and starts the STM32WB55 ARM engine
+- The built `.fap` is installed under a persistent virtual `/ext/apps/<category>` tree and recorded with the exact firmware/SVD inputs in `session.json`
+- Firmware update resources are discovered from `components.json`/`update.fuf`, safely extracted from TAR, gzip, or Heatshrink packages, and copied to the same virtual SD card before boot
+- The raw STM32 firmware mounts that tree through an emulated SPI2 SD card backed by a FAT16 image; firmware-created files are merged back before the next launch so saves persist
+- Firmware buzzer PWM, FAP speaker calls, and common notification beeps play through the PC at a safe capped level; use **Sound: On/Off** in the simulator toolbar
+- Hold an on-screen control or its keyboard equivalent for about half a second to send a long press, such as **hold Back** to leave certain menus or **hold OK** to open contextual menus
+- Update-only custom firmware packages may use the managed OEM STM32WB55 SVD while retaining their own firmware image
+- The app API bridge starts alongside the firmware engine, running the app's real entry point, menu branches, input callbacks, queues, and supported API calls against the same virtual storage
+- The selected firmware's real ST7567 SPI traffic is decoded into the panel, so OEM and CFW boot screens, desktop, and firmware-owned menus replace the bridge preview as soon as the firmware draws them
+- D-pad actions are injected with each Flipper button's real GPIO polarity and matching EXTI pending/interrupt state; early clicks wait for the firmware's GPIO baseline and desktop event loop, allowing reliable navigation of the raw firmware UI from its first screen
+- Runs common firmware GUI architecture directly: `View`, `ViewDispatcher`, `SceneManager`, Submenu, Widget, and Variable Item List modules, including scene transitions and real D-pad callbacks
+- Supports Furi event loops, loop timers, regular timers, event flags, message queues, stream buffers, mutex events, thread exit signals, and `furi_hal_random`
+- Canvas frames stream back into the 128×64 display, so D-pad and keyboard input drive the app instead of cycling guessed source screens
+- Raw firmware `/ext` access and the app bridge's `/ext`/`/int` storage calls share the persistent virtual SD tree; after stopping the simulator, **Open Virtual Storage** synchronizes and reveals its actual contents for adding ROMs, saves, settings, and test files
+- Generates missing `*_icons.h` headers from an app's `fap_icon_assets` PNG/PBM folder and renders those icons in the functional display; unresolved icon references receive a visible placeholder and warning
+- Hardware-only source backends can be omitted from the desktop build and replaced with compatibility stubs; MP3 Player keeps its real menus, library, decoder state, and settings while physical audio output remains disabled
+- A GCC-compatible desktop compiler is detected from the Pico SDK or `PATH`; an explicit executable can be set with `flipperFapStudio.desktopRuntime.compilerPath`
+- The Windows VSIX includes the patched `nviennot/stm32-emulator` engine and its required DLL; `flipperFapStudio.stm32Runtime.executablePath` is available only when an alternate build is desired
+- Renders common `canvas_*` calls—including left/center/right aligned text—XBM bitmap arrays, and `elements_button_*` soft buttons on a 128×64 qFlipper-palette display
+- Composes bounded local draw-helper calls, parameter bindings, constant string arrays, arithmetic coordinates, and short canonical loops without executing C code
+- Finds the real draw callback and exposes its `switch` cases (including `default`) as selectable screens; Left/Right or the keyboard cycles between them
+- Shows unresolved runtime strings as marked placeholders instead of silently dropping the text
+- Reloads automatically when `.c`, `.h`, or `application.fam` files change
+- Uses the selected OEM, RogueMaster, Momentum, Unleashed, or custom local SDK profile for the existing build commands
+- Finds or loads a `.fap` and checks for the expected little-endian ARM ELF32 header (runtime/API compatibility still requires a device)
+- Saves a catalog-ready 512×256 two-color PNG screenshot
+- **Build + Run on Physical Flipper** launches through uFBT and opens the existing live screen popup for device-accurate behavior
+
+The firmware process performs real STM32WB55 ARM instruction execution, renders the selected firmware UI, mounts the packaged SD resources, browses native application folders, and can launch firmware-compatible FAPs through the firmware's loader. Because the physical wireless core is absent, the engine supplies a simulation-only result for the boot-time secure-enclave inventory; it does not emulate keys or cryptographic operations. Raw `/int` flash storage, NFC, Sub-GHz radio behavior, infrared output, Bluetooth/radio-core behavior, and electrical GPIO remain unavailable or stubbed, so hardware-dependent FAPs can still stop or report missing hardware. The app-facing compatibility bridge remains active for supported app UI and logic, Static mode remains available for untrusted source, and a connected Flipper remains the final hardware authority.
+
+The concept was inspired by the archived, MIT-licensed [Flippulator](https://github.com/Milk-Cool/flippulator). This implementation is Windows-native, integrated with VS Code, and uses its own compatibility layer in an isolated process; it does not bundle Flippulator code.
 
 ---
 
@@ -179,6 +232,8 @@ Paths can be changed in VS Code Settings (`Ctrl+,`) under **Flipper FAP Studio**
 | `flipperFapStudio.askOnBuildOutput` | `false` | Prompt for a destination folder after each successful build |
 | `flipperFapStudio.buildOutputDir` | `""` | Auto-copy the built `.fap` here after each build (ignored when ask is on) |
 | `flipperFapStudio.defaultCreateAppDir` | `""` | Default parent folder offered when creating a starter app |
+| `flipperFapStudio.stm32Runtime.executablePath` | `""` | Optional emulator override; blank uses the bundled Windows STM32 engine |
+| `flipperFapStudio.stm32Runtime.maxInstructions` | `0` | Stop a firmware probe after this many ARM instructions; zero runs until stopped |
 | `flipperFapStudio.targets.rogueMasterPath` | `C:\Flipper\RogueMaster` | RogueMaster SDK path |
 | `flipperFapStudio.targets.momentumPath` | `C:\Flipper\Momentum` | Momentum SDK path |
 | `flipperFapStudio.targets.unleashedPath` | `C:\Flipper\Unleashed` | Unleashed SDK path |

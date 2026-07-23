@@ -1,0 +1,5 @@
+Design → build → launch → test, all inside VS Code.
+
+Flipper FAP Studio is free on the VS Code Marketplace.
+
+#FlipperZero #VSCode #Coding #DevTools #OpenSource

@@ -5,6 +5,9 @@ src/**
 docs/**
 screenshots/**
 social/**
+tests/**
+.runtime-test/**
+runtime/stm32/source/target/**
 out/**/*.map
 **/*.ts
 tsconfig.json

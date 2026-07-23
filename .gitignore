@@ -2,6 +2,8 @@ node_modules/
 out/
 *.vsix
 .vscode-test/
+.runtime-test/
+runtime/stm32/source/target/
 
 # Local-only notes (not for the public repo)
 PUBLISHING.md

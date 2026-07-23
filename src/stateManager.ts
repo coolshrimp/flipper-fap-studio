@@ -69,10 +69,12 @@ export class StateManager {
         );
     }
 
-    setActiveTarget(target: string) {
-        this.context.globalState.update('activeTarget', target);
-        vscode.workspace.getConfiguration('flipperFapStudio')
-            .update('defaultTarget', target, vscode.ConfigurationTarget.Global);
+    async setActiveTarget(target: string): Promise<void> {
+        await Promise.all([
+            this.context.globalState.update('activeTarget', target),
+            vscode.workspace.getConfiguration('flipperFapStudio')
+                .update('defaultTarget', target, vscode.ConfigurationTarget.Global),
+        ]);
     }
 
     // ── Target paths ──────────────────────────────────────────────────────────

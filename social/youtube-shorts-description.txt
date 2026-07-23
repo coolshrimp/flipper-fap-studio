@@ -1,0 +1,11 @@
+Build Flipper Zero apps visually—right inside VS Code.
+
+Get Flipper FAP Studio free on the VS Code Marketplace:
+https://marketplace.visualstudio.com/items?itemName=coolshrimp.flipper-fap-studio
+
+Design 128×64 interfaces, generate a complete buildable app, build and launch it on your Flipper, then mirror the screen, control the device, browse files, and stream logs over the same USB cable.
+
+Open-source project:
+https://github.com/coolshrimp/flipper-fap-studio
+
+#FlipperZero #VSCode #Coding #EmbeddedDevelopment #OpenSource #Shorts

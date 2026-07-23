@@ -1,8 +1,8 @@
 {
   "name": "flipper-fap-studio",
   "displayName": "Flipper FAP Studio",
-  "description": "GUI-first VS Code extension for building Flipper Zero .fap apps with uFBT — build, launch, and manage firmware SDKs without the command line",
-  "version": "0.12.3",
+  "description": "GUI-first VS Code extension for building, previewing, launching, and managing Flipper Zero .fap apps without the command line",
+  "version": "0.13.6",
   "publisher": "coolshrimp",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -196,6 +196,12 @@
         "command": "flipperFapStudio.dashboard.open",
         "title": "Device Dashboard",
         "icon": "$(dashboard)",
+        "category": "Flipper FAP Studio"
+      },
+      {
+        "command": "flipperFapStudio.simulator.open",
+        "title": "Flipper Simulator",
+        "icon": "$(debug-alt)",
         "category": "Flipper FAP Studio"
       },
       {
@@ -414,6 +420,22 @@
           "default": "",
           "description": "Default folder containing the Flipper app source"
         },
+        "flipperFapStudio.desktopRuntime.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to gcc/gcc.exe for Functional Simulator mode. Pico SDK MinGW and GCC on PATH are detected automatically."
+        },
+        "flipperFapStudio.stm32Runtime.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional override path to a compatible nviennot/stm32-emulator executable. The Windows build bundled with the extension is used when blank."
+        },
+        "flipperFapStudio.stm32Runtime.maxInstructions": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Optional ARM instruction limit for firmware sessions. Zero keeps the emulator running until Stop Simulator is pressed."
+        },
         "flipperFapStudio.serialPort": {
           "type": "string",
           "default": "",
@@ -477,6 +499,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "test:simulator": "npm run compile && node tests/buildState.test.js && node tests/ufbtRunner.test.js && node tests/simulatorParser.test.js && node tests/simulatorMp3Regression.test.js && node tests/simulatorPanelHtml.test.js && node tests/webviewTheme.test.js && node tests/storageVolumes.test.js && node tests/firmwareResources.test.js && node tests/fat16Image.test.js && node tests/stm32Runtime.test.js && node tests/runtimeWorkspace.test.js && node tests/desktopRuntimeCompatibility.test.js",
     "package": "vsce package",
     "deploy": "vsce package && powershell -Command \"code --install-extension (Get-ChildItem *.vsix | Sort-Object LastWriteTime -Descending | Select-Object -First 1).Name --force\""
   },

@@ -5,7 +5,7 @@ import { StateManager } from './stateManager';
 import { buildState } from './buildState';
 import { inspectSdkFolder, FLAVOR_LABELS } from './sdkCheck';
 
-const PURPLE  = new vscode.ThemeColor('charts.purple');
+const ACCENT  = new vscode.ThemeColor('charts.orange');
 const GREEN   = new vscode.ThemeColor('testing.iconPassed');
 const YELLOW  = new vscode.ThemeColor('list.warningForeground');
 
@@ -63,7 +63,7 @@ class SeparatorItem extends vscode.TreeItem {
 export class FirmwareSection extends vscode.TreeItem {
     constructor() {
         super('Firmware SDKs', vscode.TreeItemCollapsibleState.Expanded);
-        this.iconPath = new vscode.ThemeIcon('circuit-board', PURPLE);
+        this.iconPath = new vscode.ThemeIcon('circuit-board', ACCENT);
         this.contextValue = 'firmwareSection';
         this.tooltip = md('**Firmware SDK Status**\n\nShows which firmware SDKs are configured and reachable on disk.\n\nUse the inline buttons to set paths, open GitHub releases, or visit official update pages.');
     }
@@ -112,7 +112,7 @@ export class RecentProjectItem extends vscode.TreeItem {
             ? new vscode.ThemeIcon('warning', YELLOW)
             : isActive
                 ? new vscode.ThemeIcon('folder-active', GREEN)
-                : new vscode.ThemeIcon('folder', PURPLE);
+                : new vscode.ThemeIcon('folder', ACCENT);
         this.contextValue = 'recentProject';
         this.tooltip = md([
             `**${path.basename(projectPath)}**`,
@@ -308,7 +308,7 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
                 new ButtonItem(
                     'Building…',
                     'flipperFapStudio.cancelBuild',
-                    new vscode.ThemeIcon('sync~spin', PURPLE),
+                    new vscode.ThemeIcon('sync~spin', ACCENT),
                     md('**Build in progress**\n\nClick to cancel the running build.'),
                 ),
                 new ButtonItem(
@@ -323,13 +323,13 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
             new ButtonItem(
                 'Build .fap',
                 'flipperFapStudio.build',
-                new vscode.ThemeIcon('play', PURPLE),
+                new vscode.ThemeIcon('play', ACCENT),
                 md('**Build .fap**\n\nCompile the current app against the active firmware target.\n\nOutput appears in the _Flipper FAP Studio_ output panel.')
             ),
             new ButtonItem(
                 'Build + Launch on Flipper',
                 'flipperFapStudio.buildAndLaunch',
-                new vscode.ThemeIcon('run-all', PURPLE),
+                new vscode.ThemeIcon('run-all', ACCENT),
                 md('**Build + Launch on Flipper**\n\nBuilds the app then sideloads it to a connected Flipper Zero via USB so you can test immediately.')
             ),
             new ButtonItem(
@@ -357,14 +357,14 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
             new InfoItem(
                 'App',
                 folderLabel,
-                new vscode.ThemeIcon('folder', PURPLE),
+                new vscode.ThemeIcon('folder', ACCENT),
                 md(`**Current app folder**\n\n\`${folder || 'Not set'}\`\n\n_Click to browse for an app folder._`),
                 'flipperFapStudio.pickAppFolder'
             ),
             new InfoItem(
                 'Target',
                 targetLabel,
-                new vscode.ThemeIcon('circuit-board', PURPLE),
+                new vscode.ThemeIcon('circuit-board', ACCENT),
                 md(`**Active firmware target**\n\n\`${targetLabel}\`\n\n_Click to change target._`),
                 'flipperFapStudio.selectTarget'
             ),
@@ -378,25 +378,31 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
             new ButtonItem(
                 'Create starter app',
                 'flipperFapStudio.createStarterApp',
-                new vscode.ThemeIcon('new-folder', PURPLE),
+                new vscode.ThemeIcon('new-folder', ACCENT),
                 md('**Create starter app**\n\nScaffold a new Flipper app with `application.fam` and a `main.c` template.\n\nYou\'ll be prompted for a name and a parent folder (or use the default set in Settings).')
             ),
             new ButtonItem(
                 'UI Designer',
                 'flipperFapStudio.designer.open',
-                new vscode.ThemeIcon('layout', PURPLE),
+                new vscode.ThemeIcon('layout', ACCENT),
                 md('**UI Designer**\n\nVisually design 128×64 screens (lopaka-style):\n- Drag & drop text, shapes, and icons\n- Multiple screens per app\n- Generates `canvas_*` draw code — copy it, insert at cursor, or **create a complete buildable app** from the design')
+            ),
+            new ButtonItem(
+                'Flipper Simulator',
+                'flipperFapStudio.simulator.open',
+                new vscode.ThemeIcon('debug-alt', ACCENT),
+                md('**Flipper Simulator**\n\nRun the active app in a VS Code popup:\n- Boots the firmware selected as Target in the STM32WB55 ARM engine\n- Builds and stages the active `.fap` on a persistent virtual SD card\n- Runs supported app menus, input, Canvas, timers, assets, and storage\n- Keeps physical-device launch available for radios and GPIO\n\n_Radio, NFC, IR, BLE, and electrical GPIO still require hardware._')
             ),
             new ButtonItem(
                 'Device Dashboard',
                 'flipperFapStudio.dashboard.open',
-                new vscode.ThemeIcon('dashboard', PURPLE),
+                new vscode.ThemeIcon('dashboard', ACCENT),
                 md('**Device Dashboard**\n\nLive stats from the connected Flipper over USB:\n- Device name, firmware, hardware info\n- Battery charge, voltage, current, temperature\n- SD card + internal storage usage\n- Library counts (Sub-GHz, Infrared, NFC, RFID, BadUSB, Apps)')
             ),
             new ButtonItem(
                 'Select firmware target',
                 'flipperFapStudio.selectTarget',
-                new vscode.ThemeIcon('circuit-board', PURPLE),
+                new vscode.ThemeIcon('circuit-board', ACCENT),
                 md('**Select firmware target**\n\nChoose which SDK to build against:\n- OEM / uFBT (official)\n- RogueMaster, Momentum, Unleashed\n- Any custom SDK path\n\n_Set SDK paths in **Settings**._')
             ),
 
@@ -405,13 +411,13 @@ export class MainTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem
             new ButtonItem(
                 'Guide',
                 'flipperFapStudio.openGuide',
-                new vscode.ThemeIcon('book', PURPLE),
+                new vscode.ThemeIcon('book', ACCENT),
                 md('**Guide**\n\nOpen the step-by-step usage guide — getting started, build workflow, and all available actions.')
             ),
             new ButtonItem(
                 'Settings',
                 'flipperFapStudio.openSettings',
-                new vscode.ThemeIcon('settings-gear', PURPLE),
+                new vscode.ThemeIcon('settings-gear', ACCENT),
                 md('**Settings**\n\nConfigure:\n- Build output directory\n- Ask-on-build prompt\n- Default new-app folder\n- Firmware SDK paths (RogueMaster, Momentum, Unleashed)')
             ),
 

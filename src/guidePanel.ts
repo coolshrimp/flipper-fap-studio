@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { WEBVIEW_THEME } from './webviewTheme';
 
 export function showGuidePanel(): void {
     const panel = vscode.window.createWebviewPanel(
@@ -18,21 +19,22 @@ function getGuideHtml(): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Flipper FAP Studio — Guide</title>
 <style>
+  ${WEBVIEW_THEME}
   :root {
-    --purple:       #8b5cf6;
-    --purple-dark:  #7c3aed;
-    --purple-light: #a78bfa;
-    --purple-dim:   rgba(139,92,246,0.12);
-    --purple-border:rgba(139,92,246,0.3);
-    --bg:  var(--vscode-editor-background, #13111c);
-    --fg:  var(--vscode-editor-foreground, #d4d4d4);
+    --purple:       var(--fap-accent);
+    --purple-dark:  var(--fap-accent-strong);
+    --purple-light: var(--fap-accent);
+    --purple-dim:   var(--fap-accent-soft);
+    --purple-border:var(--fap-accent-border);
+    --bg:  var(--fap-bg);
+    --fg:  var(--fap-text);
     --code-bg: rgba(0,0,0,0.3);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+    font-family: var(--fap-ui-font);
     font-size: 13px;
     line-height: 1.6;
     padding: 28px 36px 60px;
@@ -62,13 +64,13 @@ function getGuideHtml(): string {
     letter-spacing: -0.02em;
     margin-bottom: 8px;
   }
-  .hero p { color: #777; font-size: 13px; }
+  .hero p { color: var(--fap-muted); font-size: 13px; }
   .steps { display: flex; flex-direction: column; gap: 16px; }
   .step {
     display: flex;
     gap: 18px;
-    background: var(--purple-dim);
-    border: 1px solid var(--purple-border);
+    background: var(--fap-surface);
+    border: 1px solid var(--fap-line);
     border-radius: 10px;
     padding: 18px 20px;
   }
@@ -76,7 +78,7 @@ function getGuideHtml(): string {
     flex-shrink: 0;
     width: 30px;
     height: 30px;
-    background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+    background: linear-gradient(135deg, var(--fap-accent-strong), var(--fap-accent));
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -92,23 +94,23 @@ function getGuideHtml(): string {
     font-weight: 600;
     margin-bottom: 6px;
   }
-  .step-body p { color: #aaa; font-size: 12px; }
+  .step-body p { color: var(--fap-muted); font-size: 12px; }
   code {
     background: var(--code-bg);
-    border: 1px solid rgba(139,92,246,0.2);
+    border: 1px solid var(--fap-accent-border);
     border-radius: 4px;
     padding: 1px 6px;
-    font-family: var(--vscode-editor-font-family, 'Consolas', monospace);
+    font-family: var(--fap-code-font);
     font-size: 11px;
     color: var(--purple-light);
   }
   .tip {
     margin-top: 14px;
-    background: rgba(139,92,246,0.08);
+    background: var(--fap-accent-soft);
     border-left: 3px solid var(--purple);
     border-radius: 0 6px 6px 0;
     padding: 10px 14px;
-    color: #999;
+    color: var(--fap-muted);
     font-size: 11px;
   }
   .tip strong { color: var(--purple-light); }
@@ -117,7 +119,7 @@ function getGuideHtml(): string {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #555;
+    color: var(--fap-muted);
     margin: 32px 0 14px;
     display: flex;
     align-items: center;
@@ -137,7 +139,7 @@ function getGuideHtml(): string {
     padding: 8px 12px;
     border-bottom: 1px solid var(--purple-border);
   }
-  .cmd-table td { padding: 8px 12px; color: #aaa; border-bottom: 1px solid rgba(139,92,246,0.1); }
+  .cmd-table td { padding: 8px 12px; color: var(--fap-muted); border-bottom: 1px solid var(--fap-line); }
   .cmd-table tr:last-child td { border-bottom: none; }
   .cmd-table td:first-child { color: var(--fg); }
 </style>
@@ -146,7 +148,7 @@ function getGuideHtml(): string {
 
 <div class="hero">
   <div class="hero-icon">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
     </svg>
@@ -221,6 +223,20 @@ function getGuideHtml(): string {
   <div class="step">
     <div class="step-num">5</div>
     <div class="step-body">
+      <h3>Preview in Flipper Simulator</h3>
+      <p>
+        Click <strong>Flipper Simulator</strong> for a fast offline static preview of
+        <code>canvas_*</code> UI calls and local draw helpers. It watches your source, lets you cycle through detected
+        screens, checks a built <code>.fap</code> for the expected ARM ELF32 header, and saves qFlipper-palette screenshots.
+        Runtime strings remain visible as marked placeholders; project code is never executed inside VS Code.
+      </p>
+      <div class="tip"><strong>Scope:</strong> This previews static Canvas output, not the STM32 CPU, full firmware, app logic, or hardware APIs. Use the physical-device button for exact behaviour.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
       <h3>Deploy to your Flipper</h3>
       <p>
         Connect your Flipper Zero via USB, then click <strong>Build + Launch on Flipper</strong>.
@@ -245,6 +261,7 @@ function getGuideHtml(): string {
     <tr><td>Clean</td><td>Removes build artefacts from the dist/ folder</td></tr>
     <tr><td>Open dist folder</td><td>Opens the dist/ output folder in your file explorer</td></tr>
     <tr><td>Create starter app</td><td>Scaffolds a new app with .fam manifest and main.c template</td></tr>
+    <tr><td>Flipper Simulator</td><td>Boots the selected Target firmware, stages the active .fap on virtual SD storage, and runs supported app UI and logic</td></tr>
     <tr><td>Select firmware target</td><td>Switches the active SDK (OEM, custom firmware, or custom path)</td></tr>
     <tr><td>Settings</td><td>Configure output paths, SDK locations, and build behaviour</td></tr>
     <tr><td>Guide</td><td>Opens this page</td></tr>

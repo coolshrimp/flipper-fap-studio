@@ -8,6 +8,7 @@ import { FlipperFsProvider, registerFsCommands } from './flipperFsView';
 import { ScreenPanel, ScreenViewProvider, initScreenLogBuffer } from './screenPanel';
 import { DesignerPanel } from './designerPanel';
 import { DashboardPanel } from './dashboardPanel';
+import { SimulatorPanel } from './simulatorPanel';
 import { flipperSerial } from './serial/flipperSerial';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -64,6 +65,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('flipperFapStudio.dashboard.open', () =>
             DashboardPanel.show(context, state))
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('flipperFapStudio.simulator.open', () =>
+            SimulatorPanel.show(context, state))
     );
 
     // ── Status bar ────────────────────────────────────────────────────────────
