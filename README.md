@@ -49,12 +49,29 @@ Source code: [github.com/coolshrimp/flipper-fap-studio](https://github.com/cools
 
 ## Panel Layout
 
-<img src="screenshots/ScreenshotDashboard.png" width="900" alt="Flipper FAP Studio — full dashboard: sidebar with live screen and device files, pop-out screen mirror with logs, and build output">
+<div align="center">
+  <img src="screenshots/ScreenshotDashboard.png" width="900" alt="Flipper FAP Studio full dashboard with sidebar, live screen, device files, pop-out mirror, logs, and build output">
+  <br>
+  <sub><strong>Complete workspace:</strong> build tools, device browser, live screen, logs, and output in one view.</sub>
+</div>
 
-<p>
-<img src="screenshots/ScreenshotSidebar.png" width="340" alt="Sidebar — build actions, Live Screen + Log panel with D-pad control, and the on-device file browser">
-<img src="screenshots/ScreenshotLivePopout.png" width="550" alt="Live Screen pop-out — full-size display mirror with D-pad, keyboard control, screenshots, reset, and the combined RPC/device log">
-</p>
+<div align="center">
+  <img src="screenshots/ScreenshotLivePopout.png" width="700" alt="Flipper live screen pop-out with D-pad, keyboard control, screenshots, reset, and device log">
+  <br>
+  <sub><strong>Live Screen:</strong> pop-out display, controls, screenshots, reset, and device logs.</sub>
+</div>
+
+<br>
+
+<details>
+<summary><strong>See the complete Activity Bar</strong></summary>
+<br>
+<div align="center">
+  <img src="screenshots/ScreenshotSidebar.png" width="260" alt="Flipper FAP Studio sidebar with build actions, simulator, live screen controls, device files, recent projects, and firmware SDKs">
+  <br>
+  <sub>Every build, simulator, device, project, and firmware action in one compact sidebar.</sub>
+</div>
+</details>
 
 The sidebar shows the current app and target at the top, one-click build actions, the **Live Screen + Log** panel (real-time display mirror with controls and the device log), the **Flipper Files (on Device)** browser, your Recent Projects, and live Firmware SDK status with inline install/update buttons.
 
@@ -88,10 +105,23 @@ The **Firmware SDKs** view below the buttons shows each SDK's status live — wh
 
 A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](https://lopaka.app/) — click **UI Designer** in the sidebar:
 
-<img src="screenshots/ScreenshotUiDesigner.png" width="900" alt="Flipper UI Designer — canvas with elements and icons, palettes, layers, properties, and the two-way code panel">
+<div align="center">
+  <img src="screenshots/ScreenshotUiDesigner.png" width="900" alt="Flipper UI Designer with canvas, elements, icons, templates, layers, properties, and two-way code panel">
+  <br>
+  <sub><strong>Visual editor:</strong> compose the 128×64 screen while the generated Canvas code stays in sync.</sub>
+</div>
 
-<img src="screenshots/ScreenshotUiDashboard.png" width="900" alt="UI Designer side by side with a code editor and the live device panels">
+<br>
 
+<details>
+<summary><strong>See the designer inside the complete VS Code workspace</strong></summary>
+<br>
+<div align="center">
+  <img src="screenshots/ScreenshotUiDashboard.png" width="900" alt="Flipper UI Designer beside a code editor and live device panels in VS Code">
+  <br>
+  <sub>Design, edit code, build, and inspect the connected Flipper without leaving VS Code.</sub>
+</div>
+</details>
 
 - **Design on a live 128×64 canvas** (zoom 3–10×, pixel grid, orange device theme) with text (all four Flipper fonts), boxes, frames, rounded variants, lines, circles, discs, dots — plus the standard Flipper **soft-buttons** (`elements_button_left/center/right`) with inverted-label preview
 - **Pixel-perfect drawing** — ✎ PENCIL and ⌫ ERASE tools paint freehand pixels onto a movable layer that exports as auto-cropped XBM
@@ -117,7 +147,11 @@ A built-in visual editor for Flipper screens, in the spirit of [lopaka.app](http
 
 Click **Flipper Simulator** in the sidebar to boot the firmware selected as **Target** and run the active app in a dedicated VS Code popup. Firmware and trusted app code execute in separate child processes; neither executes inside the VS Code extension host.
 
-![Flipper Simulator running a custom-firmware app menu](screenshots/ScreenshotSimulator.png)
+<div align="center">
+  <img src="screenshots/ScreenshotSimulator.png" width="1000" alt="Flipper Simulator running a custom-firmware app menu with firmware, FAP, display, controls, coverage, and logs">
+  <br>
+  <sub><strong>Firmware-backed simulator:</strong> boot the selected target, run the app, drive its controls, and inspect coverage and logs.</sub>
+</div>
 
 ### How the STM32 emulator works
 
@@ -184,6 +218,12 @@ One panel, qFlipper-style: the live display mirror with controls on top, and the
 ### Device Dashboard
 
 Click **Device Dashboard** in the sidebar for a one-page health check of the connected Flipper — handy before a long test session:
+
+<div align="center">
+  <img src="screenshots/ScreenshotDevice.png" width="1000" alt="Flipper Device Dashboard showing connected hardware, firmware, battery, storage, and library counts">
+  <br>
+  <sub><strong>Device health at a glance:</strong> firmware, hardware, battery, storage, and content-library statistics.</sub>
+</div>
 
 - **Device card** — name, firmware version/branch/fork, hardware model and UID, plus an expandable **All Device Info** list with every key the firmware reports (great for bug reports)
 - **Battery** — charge % with bar, voltage, current draw, temperature, and health
