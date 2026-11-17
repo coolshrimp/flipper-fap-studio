@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import { resolveUfbt } from './pythonEnv';
+import { getPythonEnvOptions } from './pythonConfig';
 
 export interface RunResult {
     ok: boolean;
@@ -27,10 +29,16 @@ export async function runUfbt(
         let log = '';
         const collect = (d: Buffer) => { log += d.toString(); };
 
-        const proc = cp.spawn('ufbt', args, {
+        const launch = resolveUfbt(getPythonEnvOptions());
+        if (launch.source === 'venv') {
+            outputChannel.appendLine('  Using uFBT from the private Python environment\n');
+        }
+
+        const proc = cp.spawn(launch.command, args, {
             cwd: appFolder,
-            shell: true,
-            env: process.env,
+            shell: launch.shell,
+            env: launch.env,
+            windowsHide: true,
         });
 
         onSpawn?.(proc);
@@ -55,7 +63,7 @@ export async function runUfbt(
         });
 
         proc.on('error', err => {
-            const msg = `Failed to start ufbt: ${err.message}\nMake sure uFBT is installed: pip install ufbt`;
+            const msg = `Failed to start ufbt: ${err.message}\nRun "Install / Update uFBT" from the Flipper FAP Studio sidebar to set it up.`;
             outputChannel.appendLine(`\n✗ ${msg}`);
             resolve({ ok: false, log: log + '\n' + msg });
         });
@@ -84,7 +92,7 @@ export async function buildWithTarget(
     onSpawn?: (proc: cp.ChildProcess) => void
 ): Promise<RunResult> {
     if (targetPath) {
-        const env = { ...process.env, UFBT_SDK_PATH: targetPath };
+        const launch = resolveUfbt(getPythonEnvOptions(), { ...process.env, UFBT_SDK_PATH: targetPath });
         return new Promise(resolve => {
             outputChannel.show(true);
             outputChannel.appendLine(`\n▶ ufbt (SDK: ${targetPath})`);
@@ -93,10 +101,11 @@ export async function buildWithTarget(
             let log = '';
             const collect = (d: Buffer) => { log += d.toString(); };
 
-            const proc = cp.spawn('ufbt', [], {
+            const proc = cp.spawn(launch.command, [], {
                 cwd: appFolder,
-                shell: true,
-                env,
+                shell: launch.shell,
+                env: launch.env,
+                windowsHide: true,
             });
 
             onSpawn?.(proc);

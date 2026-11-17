@@ -19,11 +19,8 @@ others build and test their own apps too. More free tools to come.
 
 ## Requirements
 
-- [Python 3](https://www.python.org/) installed and on PATH
-- [uFBT](https://github.com/flipperdevices/flipperzero-ufbt) — install via the extension's **Install / Update uFBT** button or manually:
-  ```
-  pip install ufbt
-  ```
+- [Python 3.8+](https://www.python.org/) installed. It does **not** need to be on PATH: the extension finds it (via the `py` launcher, PATH, or the usual install folders) or asks you to pick `python.exe`
+- [uFBT](https://github.com/flipperdevices/flipperzero-ufbt) — install via the extension's **Install / Update uFBT** button. It creates a private Python virtual environment in the extension's storage folder and installs uFBT there, then every build runs from that environment. An existing global `ufbt` on PATH still works as a fallback. To manage uFBT yourself instead, turn off `flipperFapStudio.python.useVenv` and run `pip install ufbt`.
 - VS Code 1.85 or newer
 
 ---
@@ -268,6 +265,9 @@ Paths can be changed in VS Code Settings (`Ctrl+,`) under **Flipper FAP Studio**
 |---|---|---|
 | `flipperFapStudio.defaultAppFolder` | `""` | Remembered app folder path |
 | `flipperFapStudio.defaultTarget` | `"oem"` | Active build target |
+| `flipperFapStudio.python.useVenv` | `true` | Install and run uFBT from a private virtual environment (no Python on PATH needed) |
+| `flipperFapStudio.python.path` | `""` | Python executable used once to create the venv; blank = auto-detect |
+| `flipperFapStudio.python.venvPath` | `""` | Folder for the venv; blank = the extension's storage folder |
 | `flipperFapStudio.serialPort` | `""` | COM port of the Flipper (blank = auto-detect by USB VID/PID) |
 | `flipperFapStudio.askOnBuildOutput` | `false` | Prompt for a destination folder after each successful build |
 | `flipperFapStudio.buildOutputDir` | `""` | Auto-copy the built `.fap` here after each build (ignored when ask is on) |

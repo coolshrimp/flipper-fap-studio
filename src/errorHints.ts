@@ -43,7 +43,7 @@ const PATTERNS: Array<{ test: RegExp; hint: ErrorHint }> = [
         test: /failed to start ufbt|ufbt.*not found|\'ufbt\' is not recognized|ufbt.*command not found/i,
         hint: {
             title: 'uFBT is not installed',
-            detail: 'The uFBT build tool could not be found on your system.\n\nClick "Install / Update uFBT" in the sidebar, or run:\n  pip install -U ufbt\n\nMake sure Python is on your PATH.',
+            detail: 'The uFBT build tool could not be found.\n\nClick "Install / Update uFBT" in the sidebar. It sets uFBT up in its own Python virtual environment, so Python does not need to be on your PATH.\n\nIf Python is not found automatically, set "flipperFapStudio.python.path" to your python executable.',
         },
     },
     {
