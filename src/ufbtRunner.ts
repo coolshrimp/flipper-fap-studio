@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
-import { resolveUfbt } from './pythonEnv';
+import { resolveUfbt, describeUfbtLaunch } from './pythonEnv';
 import { getPythonEnvOptions } from './pythonConfig';
 
 export interface RunResult {
@@ -29,10 +29,9 @@ export async function runUfbt(
         let log = '';
         const collect = (d: Buffer) => { log += d.toString(); };
 
-        const launch = resolveUfbt(getPythonEnvOptions());
-        if (launch.source === 'venv') {
-            outputChannel.appendLine('  Using uFBT from the private Python environment\n');
-        }
+        const pyOpts = getPythonEnvOptions();
+        const launch = resolveUfbt(pyOpts);
+        outputChannel.appendLine(`  ${describeUfbtLaunch(pyOpts, launch)}\n`);
 
         const proc = cp.spawn(launch.command, args, {
             cwd: appFolder,
@@ -92,11 +91,13 @@ export async function buildWithTarget(
     onSpawn?: (proc: cp.ChildProcess) => void
 ): Promise<RunResult> {
     if (targetPath) {
-        const launch = resolveUfbt(getPythonEnvOptions(), { ...process.env, UFBT_SDK_PATH: targetPath });
+        const pyOpts = getPythonEnvOptions();
+        const launch = resolveUfbt(pyOpts, { ...process.env, UFBT_SDK_PATH: targetPath });
         return new Promise(resolve => {
             outputChannel.show(true);
             outputChannel.appendLine(`\n▶ ufbt (SDK: ${targetPath})`);
-            outputChannel.appendLine(`  Folder: ${appFolder}\n`);
+            outputChannel.appendLine(`  Folder: ${appFolder}`);
+            outputChannel.appendLine(`  ${describeUfbtLaunch(pyOpts, launch)}\n`);
 
             let log = '';
             const collect = (d: Buffer) => { log += d.toString(); };

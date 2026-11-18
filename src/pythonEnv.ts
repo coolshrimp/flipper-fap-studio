@@ -320,6 +320,22 @@ export function resolveUfbt(
     return { command: 'ufbt', shell: true, env: baseEnv, source: 'path' };
 }
 
+/** One log line saying which uFBT is about to run, and why. */
+export function describeUfbtLaunch(
+    opts: PythonEnvOptions,
+    launch: UfbtLaunch,
+    platform: NodeJS.Platform = process.platform
+): string {
+    if (launch.source === 'venv') {
+        return `Using uFBT from the private Python environment: ${launch.command}`;
+    }
+    if (opts.useVenv) {
+        return `No uFBT found in the private Python environment (looked for ${venvUfbtPath(opts.venvDir, platform)}); ` +
+            'falling back to "ufbt" on your PATH. Run "Install / Update uFBT" to set it up.';
+    }
+    return 'Using "ufbt" from your system PATH (the private environment is turned off in settings).';
+}
+
 export function getInstalledUfbtVersion(
     opts: PythonEnvOptions,
     platform: NodeJS.Platform = process.platform

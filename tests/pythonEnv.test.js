@@ -115,6 +115,13 @@ async function main() {
     // ── opting out ignores the venv ───────────────────────────────────────────
     assert.strictEqual(py.resolveUfbt({ ...opts, useVenv: false }, {}).source, "path");
 
+    // ── the log line says which uFBT runs, and why ────────────────────────────
+    assert.ok(py.describeUfbtLaunch(opts, launch).includes(py.venvUfbtPath(venvDir)));
+    const offOpts = { ...opts, useVenv: false };
+    assert.ok(/turned off/.test(py.describeUfbtLaunch(offOpts, py.resolveUfbt(offOpts, {}))));
+    const missing = { ...opts, venvDir: path.join(root, "nope") };
+    assert.ok(/falling back/.test(py.describeUfbtLaunch(missing, py.resolveUfbt(missing, {}))));
+
     // ── re-running (update) on a healthy venv reuses it ───────────────────────
     const cfgBefore = fs.statSync(path.join(venvDir, "pyvenv.cfg")).mtimeMs;
     const again = await py.setupUfbtVenv(opts, () => {});
