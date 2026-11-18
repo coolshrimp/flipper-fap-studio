@@ -20,7 +20,7 @@ others build and test their own apps too. More free tools to come.
 ## Requirements
 
 - [Python 3.8+](https://www.python.org/) installed. It does **not** need to be on PATH: the extension finds it (via the `py` launcher, PATH, or the usual install folders) or asks you to pick `python.exe`
-- [uFBT](https://github.com/flipperdevices/flipperzero-ufbt) — install via the extension's **Install / Update uFBT** button. It creates a private Python virtual environment in the extension's storage folder and installs uFBT there, then every build runs from that environment. An existing global `ufbt` on PATH still works as a fallback. To manage uFBT yourself instead, turn off `flipperFapStudio.python.useVenv` and run `pip install ufbt`.
+- [uFBT](https://github.com/flipperdevices/flipperzero-ufbt) — install via the extension's **Install / Update uFBT** button. It creates a private Python virtual environment in the extension's storage folder and installs uFBT there, then every build runs from that environment. An existing global `ufbt` on PATH still works as a fallback. To manage uFBT yourself instead, turn off the venv toggle in the **Settings** panel (Python / uFBT section), or set `flipperFapStudio.python.useVenv` to `false`, and run `pip install ufbt`.
 - VS Code 1.85 or newer
 
 ---

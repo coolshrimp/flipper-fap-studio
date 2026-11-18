@@ -10,6 +10,7 @@ All notable changes to Flipper FAP Studio are documented here.
 - New settings: `flipperFapStudio.python.useVenv`, `flipperFapStudio.python.path`, `flipperFapStudio.python.venvPath`
 - A global `ufbt` on PATH is still used when no venv exists; set `python.useVenv` to `false` for the previous terminal-based behaviour
 - Firmware SDKs panel reads the uFBT version from the venv and refreshes as soon as an install finishes
+- Settings panel has a new **Python / uFBT** section: a toggle for the venv, a Python executable picker, an environment folder picker, and an **Install / Update uFBT now** button
 
 ---
 
