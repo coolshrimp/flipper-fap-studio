@@ -2,6 +2,18 @@
 
 All notable changes to Flipper FAP Studio are documented here.
 
+## [Unreleased]
+
+### Added — Private Python virtual environment for uFBT
+- **Install / Update uFBT** now creates a venv in the extension's storage folder and installs uFBT there; all builds, launches and cleans run `ufbt` from that venv by absolute path, so Python no longer has to be on PATH
+- Finds Python automatically (`py -3`, `python`, `python3`, then the standard Windows install folders); if none is found you are prompted to pick `python.exe`
+- New settings: `flipperFapStudio.python.useVenv`, `flipperFapStudio.python.path`, `flipperFapStudio.python.venvPath`
+- A global `ufbt` on PATH is still used when no venv exists; set `python.useVenv` to `false` for the previous terminal-based behaviour
+- Firmware SDKs panel reads the uFBT version from the venv and refreshes as soon as an install finishes
+- Settings panel has a new **Python / uFBT** section: a toggle for the venv, a Python executable picker, an environment folder picker, and an **Install / Update uFBT now** button
+
+---
+
 ## [0.13.6] — 2026-07-23
 
 ### Added — Simulator button holds

@@ -9,6 +9,9 @@ interface SettingsData {
     rogueMasterPath: string;
     momentumPath: string;
     unleashedPath: string;
+    useVenv: boolean;
+    pythonPath: string;
+    venvPath: string;
 }
 
 export class SettingsPanel {
@@ -56,6 +59,28 @@ export class SettingsPanel {
                         }
                         break;
                     }
+                    case 'pickFile': {
+                        const result = await vscode.window.showOpenDialog({
+                            canSelectFolders: false,
+                            canSelectFiles: true,
+                            canSelectMany: false,
+                            openLabel: 'Select',
+                            title: 'Select your Python executable',
+                            filters: process.platform === 'win32' ? { Executable: ['exe'] } : undefined,
+                        });
+                        if (result?.[0]) {
+                            this._panel.webview.postMessage({
+                                command: 'folderPicked',
+                                field: msg.field,
+                                value: result[0].fsPath,
+                            });
+                        }
+                        break;
+                    }
+                    case 'installUfbt': {
+                        void vscode.commands.executeCommand('flipperFapStudio.installUfbt');
+                        break;
+                    }
                     case 'save': {
                         const s = msg.settings!;
                         await cfg.update('askOnBuildOutput', s.askOnBuildOutput, vscode.ConfigurationTarget.Global);
@@ -64,6 +89,9 @@ export class SettingsPanel {
                         await cfg.update('targets.rogueMasterPath', s.rogueMasterPath, vscode.ConfigurationTarget.Global);
                         await cfg.update('targets.momentumPath', s.momentumPath, vscode.ConfigurationTarget.Global);
                         await cfg.update('targets.unleashedPath', s.unleashedPath, vscode.ConfigurationTarget.Global);
+                        await cfg.update('python.useVenv', s.useVenv, vscode.ConfigurationTarget.Global);
+                        await cfg.update('python.path', s.pythonPath, vscode.ConfigurationTarget.Global);
+                        await cfg.update('python.venvPath', s.venvPath, vscode.ConfigurationTarget.Global);
                         refresh();
                         vscode.window.showInformationMessage('Flipper FAP Studio — settings saved.');
                         break;
@@ -84,6 +112,9 @@ export class SettingsPanel {
             rogueMasterPath: state.getTargetPath('rogueMaster'),
             momentumPath: state.getTargetPath('momentum'),
             unleashedPath: state.getTargetPath('unleashed'),
+            useVenv: cfg.get<boolean>('python.useVenv') ?? true,
+            pythonPath: cfg.get<string>('python.path') ?? '',
+            venvPath: cfg.get<string>('python.venvPath') ?? '',
         };
         this._panel.webview.html = getSettingsHtml(data);
     }
@@ -276,7 +307,7 @@ function getSettingsHtml(s: SettingsData): string {
   </svg>
   <h1>Flipper FAP Studio — Settings</h1>
 </div>
-<p class="subtitle">Configure build behaviour, output paths, and firmware SDK locations.</p>
+<p class="subtitle">Configure build behaviour, output paths, Python / uFBT, and firmware SDK locations.</p>
 
 <!-- Build Output -->
 <div class="section">
@@ -314,6 +345,59 @@ function getSettingsHtml(s: SettingsData): string {
       <button class="browse-btn" onclick="pick('buildOutputDir')">Browse…</button>
     </div>
     <div class="hint">After a successful build the .fap is automatically copied here.</div>
+  </div>
+</div>
+
+<!-- Python / uFBT -->
+<div class="section">
+  <div class="section-title">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fap-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/>
+    </svg>
+    Python / uFBT
+  </div>
+
+  <div class="field">
+    <div class="toggle-row" onclick="document.getElementById('venvTgl').click()">
+      <div class="toggle-wrap">
+        <label class="toggle">
+          <input type="checkbox" id="venvTgl" ${s.useVenv ? 'checked' : ''}>
+          <div class="track"></div>
+          <div class="thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-text">
+        <strong>Run uFBT in a private Python virtual environment</strong>
+        <span>On: uFBT is installed in, and run from, its own environment, so Python does not need to be on your PATH. Off: uses the python / pip / ufbt on your PATH.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="pythonPath">
+      Python executable
+      <span class="muted">(only used to create the environment — leave blank to auto-detect)</span>
+    </label>
+    <div class="input-row">
+      <input type="text" id="pythonPath" value="${esc(s.pythonPath)}"
+             placeholder="e.g. C:\\Users\\you\\AppData\\Local\\Programs\\Python\\Python312\\python.exe">
+      <button class="browse-btn" onclick="pickFile('pythonPath')">Browse…</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="venvPath">
+      Environment folder
+      <span class="muted">(leave blank to use the extension's own storage folder)</span>
+    </label>
+    <div class="input-row">
+      <input type="text" id="venvPath" value="${esc(s.venvPath)}" placeholder="Default location">
+      <button class="browse-btn" onclick="pick('venvPath')">Browse…</button>
+    </div>
+    <div class="hint">Save your changes first, then click below to create the environment and install or update uFBT in it.</div>
+    <div class="input-row" style="margin-top:8px">
+      <button class="browse-btn" onclick="installUfbt()">Install / Update uFBT now</button>
+    </div>
   </div>
 </div>
 
@@ -399,6 +483,14 @@ function pick(field) {
     vscode.postMessage({ command: 'pickFolder', field });
 }
 
+function pickFile(field) {
+    vscode.postMessage({ command: 'pickFile', field });
+}
+
+function installUfbt() {
+    vscode.postMessage({ command: 'installUfbt' });
+}
+
 function save() {
     vscode.postMessage({
         command: 'save',
@@ -409,6 +501,9 @@ function save() {
             rogueMasterPath:    document.getElementById('rogueMasterPath').value.trim(),
             momentumPath:       document.getElementById('momentumPath').value.trim(),
             unleashedPath:      document.getElementById('unleashedPath').value.trim(),
+            useVenv:            document.getElementById('venvTgl').checked,
+            pythonPath:         document.getElementById('pythonPath').value.trim(),
+            venvPath:           document.getElementById('venvPath').value.trim(),
         }
     });
 }

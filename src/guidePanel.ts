@@ -165,11 +165,11 @@ function getGuideHtml(): string {
     <div class="step-body">
       <h3>Install uFBT</h3>
       <p>
-        Click <strong>Install / Update uFBT</strong> in the sidebar. This runs
-        <code>pip install -U ufbt</code> in a terminal. uFBT is the official Flipper build tool
+        Click <strong>Install / Update uFBT</strong> in the sidebar. This creates a private Python
+        virtual environment and installs uFBT into it. uFBT is the official Flipper build tool
         and is required for all build operations. You only need to do this once (or when updating).
       </p>
-      <div class="tip"><strong>Tip:</strong> Make sure Python 3.8+ and pip are on your PATH before running this.</div>
+      <div class="tip"><strong>Tip:</strong> You need Python 3.8+ installed, but it does <em>not</em> have to be on your PATH. If it isn't found automatically you'll be asked to pick <code>python.exe</code>.</div>
     </div>
   </div>
 
@@ -255,7 +255,7 @@ function getGuideHtml(): string {
     <tr><th>Action</th><th>What it does</th></tr>
   </thead>
   <tbody>
-    <tr><td>Install / Update uFBT</td><td>Runs <code>pip install -U ufbt</code> in a terminal</td></tr>
+    <tr><td>Install / Update uFBT</td><td>Creates a private Python virtual environment and installs / updates uFBT in it</td></tr>
     <tr><td>Build .fap</td><td>Compiles the current app to a .fap binary using uFBT</td></tr>
     <tr><td>Build + Launch on Flipper</td><td>Builds then sideloads to a connected Flipper via USB</td></tr>
     <tr><td>Clean</td><td>Removes build artefacts from the dist/ folder</td></tr>

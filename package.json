@@ -436,6 +436,21 @@
           "minimum": 0,
           "description": "Optional ARM instruction limit for firmware sessions. Zero keeps the emulator running until Stop Simulator is pressed."
         },
+        "flipperFapStudio.python.useVenv": {
+          "type": "boolean",
+          "default": true,
+          "description": "Install and run uFBT from a private Python virtual environment managed by this extension, so Python does not need to be on your PATH. Turn off to use the system python/pip/ufbt instead."
+        },
+        "flipperFapStudio.python.path": {
+          "type": "string",
+          "default": "",
+          "description": "Python executable used once to create the virtual environment (e.g. C:\\Users\\you\\AppData\\Local\\Programs\\Python\\Python312\\python.exe). Leave blank to auto-detect (py launcher, PATH, and common install folders). Does not need to be on your PATH."
+        },
+        "flipperFapStudio.python.venvPath": {
+          "type": "string",
+          "default": "",
+          "description": "Folder for the uFBT virtual environment. Leave blank to use the extension's own storage folder."
+        },
         "flipperFapStudio.serialPort": {
           "type": "string",
           "default": "",
@@ -499,7 +514,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test:simulator": "npm run compile && node tests/buildState.test.js && node tests/ufbtRunner.test.js && node tests/simulatorParser.test.js && node tests/simulatorMp3Regression.test.js && node tests/simulatorPanelHtml.test.js && node tests/webviewTheme.test.js && node tests/storageVolumes.test.js && node tests/firmwareResources.test.js && node tests/fat16Image.test.js && node tests/stm32Runtime.test.js && node tests/runtimeWorkspace.test.js && node tests/desktopRuntimeCompatibility.test.js",
+    "test:simulator": "npm run compile && node tests/buildState.test.js && node tests/ufbtRunner.test.js && node tests/simulatorParser.test.js && node tests/simulatorMp3Regression.test.js && node tests/simulatorPanelHtml.test.js && node tests/webviewTheme.test.js && node tests/storageVolumes.test.js && node tests/firmwareResources.test.js && node tests/fat16Image.test.js && node tests/stm32Runtime.test.js && node tests/runtimeWorkspace.test.js && node tests/desktopRuntimeCompatibility.test.js && node tests/pythonEnv.test.js",
     "package": "vsce package",
     "deploy": "vsce package && powershell -Command \"code --install-extension (Get-ChildItem *.vsix | Sort-Object LastWriteTime -Descending | Select-Object -First 1).Name --force\""
   },

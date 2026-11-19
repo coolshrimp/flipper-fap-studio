@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { WEBVIEW_THEME } from './webviewTheme';
-import * as cp from 'child_process';
 import * as https from 'https';
+import { getInstalledUfbtVersion as getUfbtVersionFromEnv } from './pythonEnv';
+import { getPythonEnvOptions } from './pythonConfig';
 import { StateManager } from './stateManager';
 import { FW_META, fwWebUrl } from './treeProviders';
 import {
@@ -38,13 +39,8 @@ interface UfbtVersions {
 // ── Version checks ────────────────────────────────────────────────────────────
 
 function getInstalledUfbtVersion(): string | null {
-    try {
-        const out = cp.execSync('pip show ufbt', { encoding: 'utf8', timeout: 6000, windowsHide: true });
-        const m = out.match(/^Version:\s*(.+)$/m);
-        return m ? m[1].trim() : null;
-    } catch {
-        return null;
-    }
+    // Looks in the extension's private venv first, then falls back to a global install.
+    return getUfbtVersionFromEnv(getPythonEnvOptions());
 }
 
 function fetchPypiVersion(): Promise<string | null> {
@@ -150,22 +146,12 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
             const meta = msg.id ? FW_META[msg.id] : undefined;
             switch (msg.command) {
 
-                case 'installUfbt': {
-                    const term = vscode.window.createTerminal('uFBT Install');
-                    term.show();
-                    term.sendText('pip install ufbt');
-                    setTimeout(() => this._checkUfbt(), 12000);
+                // Install and update are the same operation: `pip install --upgrade ufbt`
+                // inside the private venv. The command re-checks the version when it finishes.
+                case 'installUfbt':
+                case 'updateUfbt':
+                    void vscode.commands.executeCommand('flipperFapStudio.installUfbt');
                     break;
-                }
-
-                case 'updateUfbt': {
-                    const term = vscode.window.createTerminal('uFBT Update');
-                    term.show();
-                    // Use python -m pip for reliable upgrades (matches pip's own advice)
-                    term.sendText('python -m pip install --upgrade ufbt');
-                    setTimeout(() => this._checkUfbt(), 12000);
-                    break;
-                }
 
                 case 'checkUfbt':
                 case 'refreshAll':
@@ -213,6 +199,9 @@ export class FirmwareViewProvider implements vscode.WebviewViewProvider {
     }
 
     refresh() { this._render(); }
+
+    /** Re-read the installed uFBT version (used after install / update). */
+    checkUfbt(): Promise<void> { return this._checkUfbt(); }
 
     private async _checkUfbt() {
         this._ufbt = { installed: null, latest: null, checking: true };

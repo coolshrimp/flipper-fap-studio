@@ -10,8 +10,10 @@ import { DesignerPanel } from './designerPanel';
 import { DashboardPanel } from './dashboardPanel';
 import { SimulatorPanel } from './simulatorPanel';
 import { flipperSerial } from './serial/flipperSerial';
+import { initPythonConfig } from './pythonConfig';
 
 export function activate(context: vscode.ExtensionContext) {
+    initPythonConfig(context);
     const state = new StateManager(context);
     const mainProvider = new MainTreeProvider(state);
 
@@ -22,7 +24,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     const firmwareView = new FirmwareViewProvider(state);
     context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(FirmwareViewProvider.viewId, firmwareView)
+        vscode.window.registerWebviewViewProvider(FirmwareViewProvider.viewId, firmwareView),
+        // Internal (not in the palette): re-read the uFBT version after install / update.
+        vscode.commands.registerCommand('flipperFapStudio.checkUfbt', () => firmwareView.checkUfbt())
     );
 
     // ── Device features (screen preview w/ log, file browser) ─────────────────

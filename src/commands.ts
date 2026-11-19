@@ -10,6 +10,7 @@ import { fetchLatestReleaseTag, repoSlugFromUrl } from './sdkCheck';
 import { buildState } from './buildState';
 import { getErrorHints, formatHintsForModal } from './errorHints';
 import { flipperSerial } from './serial/flipperSerial';
+import { installOrUpdateUfbt } from './ufbtInstaller';
 
 const out = vscode.window.createOutputChannel('Flipper FAP Studio');
 
@@ -22,23 +23,11 @@ export function registerCommands(
         context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
     // ── Install / Update uFBT ────────────────────────────────────────────────
-    reg('flipperFapStudio.installUfbt', () => {
-        // Detect if already installed to pick the right command
-        let alreadyInstalled = false;
-        try {
-            const { execSync } = require('child_process') as typeof import('child_process');
-            execSync('pip show ufbt', { encoding: 'utf8', timeout: 4000, windowsHide: true });
-            alreadyInstalled = true;
-        } catch { /* not installed */ }
-
-        const terminal = vscode.window.createTerminal(alreadyInstalled ? 'uFBT Update' : 'uFBT Install');
-        terminal.show();
-        // Fresh install: pip install ufbt
-        // Upgrade:       python -m pip install --upgrade ufbt  (matches pip's own recommendation)
-        terminal.sendText(alreadyInstalled
-            ? 'python -m pip install --upgrade ufbt'
-            : 'pip install ufbt'
-        );
+    // Runs in a private venv so Python does not need to be on PATH (see pythonEnv.ts).
+    reg('flipperFapStudio.installUfbt', async () => {
+        await installOrUpdateUfbt(out);
+        // Let the Firmware SDKs panel pick up the new uFBT version.
+        void vscode.commands.executeCommand('flipperFapStudio.checkUfbt');
     });
 
     // ── Build .fap ───────────────────────────────────────────────────────────
